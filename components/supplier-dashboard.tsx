@@ -32,6 +32,7 @@ import {
 import { StatusBadge } from "./status-badge";
 import { ChatPanel } from "./chat-panel";
 import { FileText, Send, MessageSquare, Eye } from "lucide-react";
+import { TkLogo } from "@/components/tk-logo";
 
 export function SupplierDashboard() {
   const { state, currentRole, addQuotation, updateRFQ } = useStore();
@@ -82,13 +83,16 @@ export function SupplierDashboard() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h2 className="text-sm font-semibold text-foreground">
-          Supplier Dashboard — {supplier.name}
-        </h2>
-        <p className="text-[11px] text-muted-foreground">
-          View assigned RFQs and submit quotations
-        </p>
+      <div className="flex items-center gap-4">
+        <TkLogo containerClassName="h-7 w-28" />
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">
+            Supplier Dashboard — {supplier.name}
+          </h2>
+          <p className="text-[11px] text-muted-foreground">
+            View assigned RFQs and submit quotations
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-3">

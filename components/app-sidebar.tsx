@@ -26,17 +26,9 @@ export function AppSidebar() {
 
   return (
     <aside className="flex h-full w-56 flex-col bg-sidebar text-sidebar-foreground">
-      <div className="flex h-16 items-center border-b border-white/20 px-4">
-        <div className="flex items-center gap-3">
-          <TkLogo className="h-10 w-auto shrink-0 object-contain" invert />
-          <div className="flex flex-col">
-            <span className="text-[11px] font-bold leading-tight tracking-wide text-white">
-              ProCure
-            </span>
-            <span className="text-[9px] leading-tight text-white/60">
-              Sourcing v2.0
-            </span>
-          </div>
+      <div className="flex h-16 items-center border-b border-white/20 px-3">
+        <div className="flex items-center gap-2">
+          <TkLogo containerClassName="h-8 w-36" invert />
         </div>
       </div>
       <nav className="flex-1 px-2 py-3">

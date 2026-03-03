@@ -16,6 +16,7 @@ import { StatusBadge } from "./status-badge";
 import { RFQForm } from "./rfq-form";
 import { ChatPanel } from "./chat-panel";
 import { Plus, MessageSquare, Edit, FileText } from "lucide-react";
+import { TkLogo } from "@/components/tk-logo";
 
 export function EngineerDashboard() {
   const { state, getCurrentUser } = useStore();
@@ -33,13 +34,16 @@ export function EngineerDashboard() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-semibold text-foreground">
-            Engineer Dashboard
-          </h2>
-          <p className="text-[11px] text-muted-foreground">
-            Create and manage your RFQ requests
-          </p>
+        <div className="flex items-center gap-4">
+          <TkLogo containerClassName="h-7 w-28" />
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">
+              Engineer Dashboard
+            </h2>
+            <p className="text-[11px] text-muted-foreground">
+              Create and manage your RFQ requests
+            </p>
+          </div>
         </div>
         <Button
           size="sm"

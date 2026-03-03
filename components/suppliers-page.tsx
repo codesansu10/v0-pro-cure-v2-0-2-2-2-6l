@@ -12,19 +12,23 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Truck, CheckCircle, XCircle } from "lucide-react";
+import { TkLogo } from "@/components/tk-logo";
 
 export function SuppliersPage() {
   const { state } = useStore();
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h2 className="text-sm font-semibold text-foreground">
-          Supplier Directory
-        </h2>
-        <p className="text-[11px] text-muted-foreground">
-          Registered suppliers and their capabilities
-        </p>
+      <div className="flex items-center gap-4">
+        <TkLogo containerClassName="h-7 w-28" />
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">
+            Supplier Directory
+          </h2>
+          <p className="text-[11px] text-muted-foreground">
+            Registered suppliers and their capabilities
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">

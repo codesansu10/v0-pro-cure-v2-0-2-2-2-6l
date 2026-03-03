@@ -1,27 +1,32 @@
-import Image from "next/image";
+const TK_LOGO_URL =
+  "https://upload.wikimedia.org/wikipedia/commons/1/13/Thyssenkrupp_AG_Logo_2015.svg";
 
 /**
- * thyssenkrupp official logo (2015 brand identity).
- * Renders the actual SVG from /public/thyssenkrupp-logo.svg.
+ * Official thyssenkrupp logo (2015 brand identity) loaded from Wikimedia Commons.
  *
- * For white-on-dark contexts, use `invert` to flip the color.
+ * Uses a plain <img> inside a fixed-size container with object-contain
+ * so the full logo (rings + wordmark) is always visible without clipping.
+ *
+ * @param containerClassName - Tailwind classes for the outer wrapper (set width/height here)
+ * @param invert - applies brightness-0 invert for white-on-dark / colored backgrounds
  */
 export function TkLogo({
-  className = "",
+  containerClassName = "h-8 w-40",
   invert = false,
 }: {
-  className?: string;
+  containerClassName?: string;
   /** Set true for white logo on dark / colored backgrounds */
   invert?: boolean;
 }) {
   return (
-    <Image
-      src="/thyssenkrupp-logo.svg"
-      alt="thyssenkrupp logo"
-      width={110}
-      height={85}
-      className={`${className} ${invert ? "brightness-0 invert" : ""}`}
-      priority
-    />
+    <div className={`${containerClassName} shrink-0 overflow-visible`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={TK_LOGO_URL}
+        alt="thyssenkrupp logo"
+        className={`h-full w-full object-contain ${invert ? "brightness-0 invert" : ""}`}
+        crossOrigin="anonymous"
+      />
+    </div>
   );
 }

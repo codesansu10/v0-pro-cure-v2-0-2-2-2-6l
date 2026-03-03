@@ -23,6 +23,7 @@ import {
   TrendingUp,
   MessageSquare,
 } from "lucide-react";
+import { TkLogo } from "@/components/tk-logo";
 
 export function HOPDashboard() {
   const { state, updateQCS, updateRFQ } = useStore();
@@ -50,13 +51,16 @@ export function HOPDashboard() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h2 className="text-sm font-semibold text-foreground">
-          Head of Procurement Dashboard
-        </h2>
-        <p className="text-[11px] text-muted-foreground">
-          Review QCS, approve awards, and monitor procurement pipeline
-        </p>
+      <div className="flex items-center gap-4">
+        <TkLogo containerClassName="h-7 w-28" />
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">
+            Head of Procurement Dashboard
+          </h2>
+          <p className="text-[11px] text-muted-foreground">
+            Review QCS, approve awards, and monitor procurement pipeline
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-5 gap-3">

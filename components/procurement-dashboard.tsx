@@ -26,6 +26,7 @@ import {
   Truck,
 } from "lucide-react";
 import type { RFQStatus } from "@/lib/types";
+import { TkLogo } from "@/components/tk-logo";
 import {
   Dialog,
   DialogContent,
@@ -144,13 +145,16 @@ export function ProcurementDashboard() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-semibold text-foreground">
-            Procurement Dashboard
-          </h2>
-          <p className="text-[11px] text-muted-foreground">
-            Manage RFQs, suppliers, and quotations
-          </p>
+        <div className="flex items-center gap-4">
+          <TkLogo containerClassName="h-7 w-28" />
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">
+              Procurement Dashboard
+            </h2>
+            <p className="text-[11px] text-muted-foreground">
+              Manage RFQs, suppliers, and quotations
+            </p>
+          </div>
         </div>
         <Button
           size="sm"

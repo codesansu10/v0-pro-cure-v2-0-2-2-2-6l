@@ -38,13 +38,13 @@ export function Topbar() {
     <header className="flex h-14 items-center justify-between border-b border-border bg-card px-6">
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-3">
-          <TkLogo className="h-10 w-auto shrink-0 object-contain" />
+          <TkLogo containerClassName="h-8 w-40" />
           <div>
             <h1 className="text-sm font-semibold leading-tight text-foreground">
               ProCure v2.0
             </h1>
             <p className="text-[10px] leading-tight text-muted-foreground">
-              thyssenkrupp Sourcing
+              Sourcing Platform
             </p>
           </div>
         </div>

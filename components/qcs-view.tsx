@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { BarChart3, Download } from "lucide-react";
+import { TkLogo } from "@/components/tk-logo";
 
 export function QCSView() {
   const { state, updateQCS, updateRFQ } = useStore();
@@ -63,13 +64,16 @@ export function QCSView() {
   if (state.qcs.length === 0) {
     return (
       <div className="flex flex-col gap-4">
-        <div>
-          <h2 className="text-sm font-semibold text-foreground">
-            Quote Comparison Sheets
-          </h2>
-          <p className="text-[11px] text-muted-foreground">
-            QCS will appear here once created by Procurement
-          </p>
+        <div className="flex items-center gap-4">
+          <TkLogo containerClassName="h-7 w-28" />
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">
+              Quote Comparison Sheets
+            </h2>
+            <p className="text-[11px] text-muted-foreground">
+              QCS will appear here once created by Procurement
+            </p>
+          </div>
         </div>
         <Card className="border-border">
           <CardContent className="py-12 text-center">
@@ -85,13 +89,16 @@ export function QCSView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-sm font-semibold text-foreground">
-          Quote Comparison Sheets
-        </h2>
-        <p className="text-[11px] text-muted-foreground">
-          Compare supplier quotations and make award decisions
-        </p>
+      <div className="flex items-center gap-4">
+        <TkLogo containerClassName="h-7 w-28" />
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">
+            Quote Comparison Sheets
+          </h2>
+          <p className="text-[11px] text-muted-foreground">
+            Compare supplier quotations and make award decisions
+          </p>
+        </div>
       </div>
 
       {state.qcs.map((qcs) => {

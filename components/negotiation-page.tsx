@@ -24,6 +24,7 @@ import {
 import { StatusBadge } from "./status-badge";
 import { ChatPanel } from "./chat-panel";
 import { MessageSquare, Edit, Handshake } from "lucide-react";
+import { TkLogo } from "@/components/tk-logo";
 
 export function NegotiationPage() {
   const { state, updateQuotation, currentRole } = useStore();
@@ -48,13 +49,16 @@ export function NegotiationPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h2 className="text-sm font-semibold text-foreground">
-          Negotiation Center
-        </h2>
-        <p className="text-[11px] text-muted-foreground">
-          Manage negotiation rounds and finalize award values
-        </p>
+      <div className="flex items-center gap-4">
+        <TkLogo containerClassName="h-7 w-28" />
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">
+            Negotiation Center
+          </h2>
+          <p className="text-[11px] text-muted-foreground">
+            Manage negotiation rounds and finalize award values
+          </p>
+        </div>
       </div>
 
       {negotiationRFQs.length === 0 ? (

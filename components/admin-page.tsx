@@ -12,19 +12,23 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Users, Database, FileText, BarChart3 } from "lucide-react";
+import { TkLogo } from "@/components/tk-logo";
 
 export function AdminPage() {
   const { state } = useStore();
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h2 className="text-sm font-semibold text-foreground">
-          System Administration
-        </h2>
-        <p className="text-[11px] text-muted-foreground">
-          System overview and data statistics
-        </p>
+      <div className="flex items-center gap-4">
+        <TkLogo containerClassName="h-7 w-28" />
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">
+            System Administration
+          </h2>
+          <p className="text-[11px] text-muted-foreground">
+            System overview and data statistics
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-4 gap-3">

@@ -28,6 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { TkLogo } from "@/components/tk-logo";
 
 export function RFQListPage() {
   const { state, currentRole } = useStore();
@@ -63,14 +64,17 @@ export function RFQListPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-semibold text-foreground">
-            RFQ Registry
-          </h2>
-          <p className="text-[11px] text-muted-foreground">
-            {rfqs.length} RFQ{rfqs.length !== 1 ? "s" : ""} visible for your
-            role
-          </p>
+        <div className="flex items-center gap-4">
+          <TkLogo containerClassName="h-7 w-28" />
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">
+              RFQ Registry
+            </h2>
+            <p className="text-[11px] text-muted-foreground">
+              {rfqs.length} RFQ{rfqs.length !== 1 ? "s" : ""} visible for your
+              role
+            </p>
+          </div>
         </div>
         {canCreate && (
           <Button
