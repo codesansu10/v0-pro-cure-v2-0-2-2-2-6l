@@ -1,6 +1,7 @@
 "use client";
 
 import { useStore } from "@/lib/store";
+import { TkLogo } from "@/components/tk-logo";
 import {
   LayoutDashboard,
   FileText,
@@ -26,13 +27,16 @@ export function AppSidebar() {
   return (
     <aside className="flex h-full w-56 flex-col bg-sidebar text-sidebar-foreground">
       <div className="flex h-14 items-center border-b border-sidebar-border px-4">
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded bg-[#00A0E3]">
-            <span className="text-[10px] font-bold text-white">tk</span>
+        <div className="flex items-center gap-2.5">
+          <TkLogo className="h-7 w-7 shrink-0" color="white" />
+          <div className="flex flex-col">
+            <span className="text-[11px] font-bold leading-tight tracking-wide text-white">
+              thyssenkrupp
+            </span>
+            <span className="text-[9px] leading-tight text-white/60">
+              ProCure v2.0
+            </span>
           </div>
-          <span className="text-xs font-semibold tracking-wide uppercase text-sidebar-foreground/80">
-            Navigation
-          </span>
         </div>
       </div>
       <nav className="flex-1 px-2 py-3">
@@ -47,8 +51,8 @@ export function AppSidebar() {
                   className={cn(
                     "flex w-full items-center gap-3 rounded px-3 py-2 text-xs font-medium transition-colors",
                     isActive
-                      ? "bg-sidebar-accent text-[#00A0E3]"
-                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                      ? "bg-white/20 text-white"
+                      : "text-white/70 hover:bg-white/10 hover:text-white"
                   )}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
@@ -59,9 +63,9 @@ export function AppSidebar() {
           })}
         </ul>
       </nav>
-      <div className="border-t border-sidebar-border px-4 py-3">
-        <p className="text-[10px] text-sidebar-foreground/40">
-          ProCure v2.0 — Internal Use Only
+      <div className="border-t border-white/20 px-4 py-3">
+        <p className="text-[10px] text-white/40">
+          Internal Use Only
         </p>
       </div>
     </aside>

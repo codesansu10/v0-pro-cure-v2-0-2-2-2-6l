@@ -3,6 +3,7 @@
 import { useStore } from "@/lib/store";
 import type { Role } from "@/lib/types";
 import { Bell, User } from "lucide-react";
+import { TkLogo } from "@/components/tk-logo";
 import {
   Select,
   SelectContent,
@@ -38,7 +39,7 @@ export function Topbar() {
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded bg-[#00A0E3]">
-            <span className="text-xs font-bold text-white">tk</span>
+            <TkLogo className="h-5 w-5" color="white" />
           </div>
           <div>
             <h1 className="text-sm font-semibold leading-tight text-foreground">
