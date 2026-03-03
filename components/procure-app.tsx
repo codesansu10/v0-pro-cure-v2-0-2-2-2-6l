@@ -54,15 +54,18 @@ function PageContent() {
 }
 
 export function ProcureApp() {
+  const { currentRole } = useStore();
+  const isProcurement = currentRole === "procurement";
+
   return (
     <div className="flex h-screen flex-col bg-background">
       <Topbar />
       <div className="flex flex-1 overflow-hidden">
-        <AppSidebar />
+        {isProcurement && <AppSidebar />}
         <main className="flex-1 overflow-hidden">
           <ScrollArea className="h-full">
             <div className="p-6">
-              <PageContent />
+              {isProcurement ? <PageContent /> : <DashboardContent />}
             </div>
           </ScrollArea>
         </main>
