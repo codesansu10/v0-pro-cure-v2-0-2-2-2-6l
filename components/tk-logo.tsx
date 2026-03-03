@@ -1,6 +1,9 @@
 /**
  * thyssenkrupp logo (2015 brand identity)
  * Two interlocking rings (Thyssen top, Krupp bottom) + optional wordmark.
+ *
+ * The icon-only variant uses a square-ish viewBox so it renders fully
+ * visible even inside small containers constrained by height.
  */
 export function TkLogo({
   className = "",
@@ -12,6 +15,7 @@ export function TkLogo({
   showWordmark?: boolean;
 }) {
   if (showWordmark) {
+    /* Full logo with "thyssenkrupp" wordmark below the rings */
     return (
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -19,18 +23,21 @@ export function TkLogo({
         className={className}
         aria-label="thyssenkrupp logo"
         role="img"
+        fill="none"
       >
         <g fill={color}>
-          <path d="M100 0C79.013 0 62 16.341 62 36.5S79.013 73 100 73s38-16.341 38-36.5S120.987 0 100 0zm0 8c16.569 0 30 12.759 30 28.5S116.569 65 100 65 70 52.241 70 36.5 83.431 8 100 8z" />
-          <path d="M100 39C79.013 39 62 55.341 62 75.5S79.013 112 100 112s38-16.341 38-36.5S120.987 39 100 39zm0 8c16.569 0 30 12.759 30 28.5S116.569 104 100 104 70 91.241 70 75.5 83.431 47 100 47z" />
+          {/* Upper ring (Thyssen) */}
+          <path d="M100 4a34 34 0 1 0 0 68 34 34 0 1 0 0-68zm0 7a27 27 0 1 1 0 54 27 27 0 1 1 0-54z" />
+          {/* Lower ring (Krupp) */}
+          <path d="M100 42a34 34 0 1 0 0 68 34 34 0 1 0 0-68zm0 7a27 27 0 1 1 0 54 27 27 0 1 1 0-54z" />
           <text
             x="100"
-            y="148"
+            y="146"
             textAnchor="middle"
             fontFamily="Arial, Helvetica, sans-serif"
-            fontSize="22"
+            fontSize="20"
             fontWeight="400"
-            letterSpacing="1.5"
+            letterSpacing="1.2"
           >
             thyssenkrupp
           </text>
@@ -39,19 +46,21 @@ export function TkLogo({
     );
   }
 
+  /* Icon-only: two interlocking rings in a near-square viewBox */
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 76 112"
+      viewBox="0 0 68 106"
       className={className}
       aria-label="thyssenkrupp logo"
       role="img"
+      fill="none"
     >
       <g fill={color}>
         {/* Upper ring (Thyssen) */}
-        <path d="M38 0C17.013 0 0 16.341 0 36.5S17.013 73 38 73s38-16.341 38-36.5S58.987 0 38 0zm0 8c16.569 0 30 12.759 30 28.5S54.569 65 38 65 8 52.241 8 36.5 21.431 8 38 8z" />
+        <path d="M34 0a34 34 0 1 0 0 68 34 34 0 1 0 0-68zm0 7a27 27 0 1 1 0 54 27 27 0 1 1 0-54z" />
         {/* Lower ring (Krupp) */}
-        <path d="M38 39C17.013 39 0 55.341 0 75.5S17.013 112 38 112s38-16.341 38-36.5S58.987 39 38 39zm0 8c16.569 0 30 12.759 30 28.5S54.569 104 38 104 8 91.241 8 75.5 21.431 47 38 47z" />
+        <path d="M34 38a34 34 0 1 0 0 68 34 34 0 1 0 0-68zm0 7a27 27 0 1 1 0 54 27 27 0 1 1 0-54z" />
       </g>
     </svg>
   );
