@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 154">
+  <!-- thyssenkrupp logo 2015: two interlocking rings + wordmark -->
+  <g fill="currentColor">
+    <!-- Upper circle (Thyssen) -->
+    <path d="M100 0C79.013 0 62 16.341 62 36.5S79.013 73 100 73s38-16.341 38-36.5S120.987 0 100 0zm0 8c16.569 0 30 12.759 30 28.5S116.569 65 100 65 70 52.241 70 36.5 83.431 8 100 8z"/>
+    <!-- Lower circle (Krupp) -->
+    <path d="M100 39C79.013 39 62 55.341 62 75.5S79.013 112 100 112s38-16.341 38-36.5S120.987 39 100 39zm0 8c16.569 0 30 12.759 30 28.5S116.569 104 100 104 70 91.241 70 75.5 83.431 47 100 47z"/>
+    <!-- Wordmark: thyssenkrupp -->
+    <text x="100" y="148" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="400" letter-spacing="1.5">thyssenkrupp</text>
+  </g>
+</svg>

@@ -38,9 +38,7 @@ export function Topbar() {
     <header className="flex h-14 items-center justify-between border-b border-border bg-card px-6">
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded bg-[#00A0E3]">
-            <TkLogo className="h-5 w-5" color="white" />
-          </div>
+          <TkLogo className="h-8 w-auto shrink-0" color="#00A0E3" />
           <div>
             <h1 className="text-sm font-semibold leading-tight text-foreground">
               ProCure v2.0

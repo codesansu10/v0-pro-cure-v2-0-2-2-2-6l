@@ -26,15 +26,15 @@ export function AppSidebar() {
 
   return (
     <aside className="flex h-full w-56 flex-col bg-sidebar text-sidebar-foreground">
-      <div className="flex h-14 items-center border-b border-sidebar-border px-4">
-        <div className="flex items-center gap-2.5">
-          <TkLogo className="h-7 w-7 shrink-0" color="white" />
+      <div className="flex h-16 items-center border-b border-white/20 px-4">
+        <div className="flex items-center gap-3">
+          <TkLogo className="h-9 w-auto shrink-0" color="white" />
           <div className="flex flex-col">
             <span className="text-[11px] font-bold leading-tight tracking-wide text-white">
-              thyssenkrupp
+              ProCure
             </span>
             <span className="text-[9px] leading-tight text-white/60">
-              ProCure v2.0
+              Sourcing v2.0
             </span>
           </div>
         </div>
