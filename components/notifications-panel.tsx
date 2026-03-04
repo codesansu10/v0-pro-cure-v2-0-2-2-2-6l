@@ -9,7 +9,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { X, Check, Trash2, FileText, MessageSquare, BarChart3, CheckCircle, AlertCircle } from "lucide-react";
+import { Check, Trash2, FileText, MessageSquare, BarChart3, CheckCircle, AlertCircle } from "lucide-react";
 import type { NotificationType } from "@/lib/types";
 
 interface NotificationsPanelProps {
@@ -89,24 +89,14 @@ export function NotificationsPanel({ open, onClose }: NotificationsPanelProps) {
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent className="w-96 p-0">
         <SheetHeader className="border-b border-border px-4 py-3">
-          <div className="flex items-center justify-between">
-            <SheetTitle className="text-sm font-semibold">
-              Notifications
-              {unreadCount > 0 && (
-                <span className="ml-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#00A0E3] text-[10px] font-bold text-white">
-                  {unreadCount}
-                </span>
-              )}
-            </SheetTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 w-6 p-0"
-              onClick={onClose}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          <SheetTitle className="text-sm font-semibold">
+            Notifications
+            {unreadCount > 0 && (
+              <span className="ml-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#00A0E3] text-[10px] font-bold text-white">
+                {unreadCount}
+              </span>
+            )}
+          </SheetTitle>
         </SheetHeader>
 
         {/* Actions */}
