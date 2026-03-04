@@ -110,23 +110,17 @@ export function ProcurementDashboard() {
       setCurrentPage("qcs");
       return;
     }
+    // Create QCS in "draft" status - Procurement must explicitly submit to HoP
     addQCS({
       rfqId,
+      createdByUserId: user.id,
       buyer: user.name,
       project: rfq.project,
       pspElement: rfq.pspElement,
       budget: rfq.budget,
       impactSavings: 0,
       comment: "",
-      status: "Pending",
-    });
-    // Notify HoP
-    addNotification({
-      role: "hop",
-      rfqId,
-      title: "QCS Ready for Review",
-      message: `A Quote Comparison Sheet has been created for ${rfq.project} - ${rfq.component}. Please review and approve.`,
-      type: "qcs",
+      status: "draft",
     });
     setCurrentPage("qcs");
   }

@@ -75,9 +75,17 @@ export interface Quotation {
   finalAwardValue?: number;
 }
 
+export type QCSStatus = 
+  | "draft"
+  | "submitted_for_approval"
+  | "approved"
+  | "rejected"
+  | "needs_negotiation";
+
 export interface QCS {
   id: string;
   rfqId: string;
+  createdByUserId: string;
   buyer: string;
   project: string;
   pspElement: string;
@@ -85,7 +93,10 @@ export interface QCS {
   impactSavings: number;
   comment: string;
   createdAt: string;
-  status: "Pending" | "Approved" | "Sent Back";
+  status: QCSStatus;
+  submittedToHopAt?: string;
+  hopDecisionAt?: string;
+  hopComment?: string;
 }
 
 export type ThreadType = "engineer_procurement" | "supplier_procurement";

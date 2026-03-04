@@ -12,11 +12,50 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { BarChart3, Download } from "lucide-react";
+import { BarChart3, Download, Send } from "lucide-react";
 import { TkLogo } from "@/components/tk-logo";
+import type { QCSStatus } from "@/lib/types";
+
+const statusLabels: Record<QCSStatus, string> = {
+  draft: "Draft",
+  submitted_for_approval: "Pending HoP Approval",
+  approved: "Approved",
+  rejected: "Rejected",
+  needs_negotiation: "Needs Negotiation",
+};
+
+const statusColors: Record<QCSStatus, string> = {
+  draft: "bg-zinc-500",
+  submitted_for_approval: "bg-amber-600",
+  approved: "bg-emerald-600",
+  rejected: "bg-red-600",
+  needs_negotiation: "bg-orange-600",
+};
 
 export function QCSView() {
-  const { state, updateQCS, updateRFQ } = useStore();
+  const { state, updateQCS, updateRFQ, currentRole, getCurrentUser, addNotification } = useStore();
+  const user = getCurrentUser();
+  const isProcurement = currentRole === "procurement";
+
+  function handleSubmitToHoP(qcsId: string) {
+    const qcs = state.qcs.find((q) => q.id === qcsId);
+    if (!qcs) return;
+    const rfq = state.rfqs.find((r) => r.id === qcs.rfqId);
+    
+    updateQCS(qcsId, {
+      status: "submitted_for_approval",
+      submittedToHopAt: new Date().toISOString(),
+    });
+
+    // Notify HoP
+    addNotification({
+      role: "hop",
+      rfqId: qcs.rfqId,
+      title: "QCS Ready for Approval",
+      message: `QCS ${qcsId} for ${rfq?.project || "Unknown"} - ${rfq?.component || "Unknown"} has been submitted for your approval.`,
+      type: "qcs",
+    });
+  }
 
   function exportToCSV(qcsId: string) {
     const qcs = state.qcs.find((q) => q.id === qcsId);
@@ -128,16 +167,32 @@ export function QCSView() {
                 </CardTitle>
                 <div className="flex items-center gap-2">
                   <Badge
-                    className={`text-[10px] border-0 text-white ${
-                      qcs.status === "Approved"
-                        ? "bg-emerald-600"
-                        : qcs.status === "Sent Back"
-                        ? "bg-orange-600"
-                        : "bg-zinc-500"
-                    }`}
+                    className={`text-[10px] border-0 text-white ${statusColors[qcs.status]}`}
                   >
-                    {qcs.status}
+                    {statusLabels[qcs.status]}
                   </Badge>
+                  {/* Submit to HoP button - only for Procurement and only for draft QCS */}
+                  {isProcurement && qcs.status === "draft" && (
+                    <Button
+                      size="sm"
+                      className="h-6 gap-1 px-2 text-[10px] bg-[#00A0E3] text-white hover:bg-[#0090cc]"
+                      onClick={() => handleSubmitToHoP(qcs.id)}
+                    >
+                      <Send className="h-3 w-3" />
+                      Submit to HoP for Approval
+                    </Button>
+                  )}
+                  {/* Re-submit button for needs_negotiation status */}
+                  {isProcurement && qcs.status === "needs_negotiation" && (
+                    <Button
+                      size="sm"
+                      className="h-6 gap-1 px-2 text-[10px] bg-[#00A0E3] text-white hover:bg-[#0090cc]"
+                      onClick={() => handleSubmitToHoP(qcs.id)}
+                    >
+                      <Send className="h-3 w-3" />
+                      Re-submit to HoP
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
