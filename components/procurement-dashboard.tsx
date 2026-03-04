@@ -43,6 +43,7 @@ export function ProcurementDashboard() {
     addQCS,
     getCurrentUser,
     setCurrentPage,
+    addNotification,
   } = useStore();
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -72,7 +73,30 @@ export function ProcurementDashboard() {
   }
 
   function handleAssignSuppliers(rfqId: string) {
-    selectedSuppliers.forEach((sid) => assignSupplier(rfqId, sid));
+    const rfq = state.rfqs.find((r) => r.id === rfqId);
+    selectedSuppliers.forEach((sid) => {
+      assignSupplier(rfqId, sid);
+      // Notify each supplier
+      addNotification({
+        role: "supplier",
+        supplierId: sid,
+        rfqId,
+        title: "New RFQ Received",
+        message: `You have received a new RFQ for ${rfq?.project || "Unknown"} - ${rfq?.component || "Unknown"}. Please review and submit your quotation.`,
+        type: "rfq",
+      });
+    });
+    // Notify the engineer who created the RFQ
+    if (rfq) {
+      addNotification({
+        role: "engineer",
+        userId: rfq.createdBy,
+        rfqId,
+        title: "RFQ Sent to Suppliers",
+        message: `Your RFQ ${rfqId} for ${rfq.project} - ${rfq.component} has been sent to ${selectedSuppliers.length} supplier(s).`,
+        type: "rfq",
+      });
+    }
     handleStatusChange(rfqId, "Sent to Supplier");
     setAssignDialog(null);
     setSelectedSuppliers([]);
@@ -86,15 +110,17 @@ export function ProcurementDashboard() {
       setCurrentPage("qcs");
       return;
     }
+    // Create QCS in "draft" status - Procurement must explicitly submit to HoP
     addQCS({
       rfqId,
+      createdByUserId: user.id,
       buyer: user.name,
       project: rfq.project,
       pspElement: rfq.pspElement,
       budget: rfq.budget,
       impactSavings: 0,
       comment: "",
-      status: "Pending",
+      status: "draft",
     });
     setCurrentPage("qcs");
   }

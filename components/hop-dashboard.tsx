@@ -4,6 +4,8 @@ import { useStore } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -12,41 +14,154 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { StatusBadge } from "./status-badge";
 import { ChatPanel } from "./chat-panel";
 import { useState } from "react";
 import {
   CheckCircle,
+  XCircle,
   RotateCcw,
   BarChart3,
   FileText,
   TrendingUp,
   MessageSquare,
+  Eye,
 } from "lucide-react";
 import { TkLogo } from "@/components/tk-logo";
+import type { QCSStatus } from "@/lib/types";
+
+const statusLabels: Record<QCSStatus, string> = {
+  draft: "Draft",
+  submitted_for_approval: "Pending Approval",
+  approved: "Approved",
+  rejected: "Rejected",
+  needs_negotiation: "Needs Negotiation",
+};
+
+const statusColors: Record<QCSStatus, string> = {
+  draft: "bg-zinc-500",
+  submitted_for_approval: "bg-amber-600",
+  approved: "bg-emerald-600",
+  rejected: "bg-red-600",
+  needs_negotiation: "bg-orange-600",
+};
 
 export function HOPDashboard() {
-  const { state, updateQCS, updateRFQ } = useStore();
+  const { state, updateQCS, updateRFQ, addNotification, setCurrentPage } = useStore();
   const [chatRFQId, setChatRFQId] = useState<string | null>(null);
+  const [rejectDialog, setRejectDialog] = useState<string | null>(null);
+  const [rejectComment, setRejectComment] = useState("");
 
   const totalRFQs = state.rfqs.length;
   const totalBudget = state.rfqs.reduce((s, r) => s + r.budget, 0);
   const qcsCount = state.qcs.length;
-  const approvedCount = state.qcs.filter((q) => q.status === "Approved").length;
+  const approvedCount = state.qcs.filter((q) => q.status === "approved").length;
   const closedRFQs = state.rfqs.filter((r) => r.status === "Closed").length;
+  
+  // QCS pending approval (for the main table)
+  const pendingQCS = state.qcs.filter(
+    (q) => q.status === "submitted_for_approval" || q.status === "needs_negotiation"
+  );
 
   function handleApprove(qcsId: string) {
     const qcs = state.qcs.find((q) => q.id === qcsId);
     if (!qcs) return;
-    updateQCS(qcsId, { status: "Approved" });
+    const rfq = state.rfqs.find((r) => r.id === qcs.rfqId);
+    
+    updateQCS(qcsId, {
+      status: "approved",
+      hopDecisionAt: new Date().toISOString(),
+    });
     updateRFQ(qcs.rfqId, { status: "Closed" });
+
+    // Notify procurement
+    addNotification({
+      role: "procurement",
+      rfqId: qcs.rfqId,
+      title: "QCS Approved",
+      message: `QCS ${qcsId} for ${rfq?.project || "Unknown"} has been approved by Head of Procurement.`,
+      type: "decision",
+    });
+
+    // Notify engineer
+    if (rfq) {
+      addNotification({
+        role: "engineer",
+        userId: rfq.createdBy,
+        rfqId: qcs.rfqId,
+        title: "RFQ Decision Update",
+        message: `Your RFQ ${qcs.rfqId} for ${rfq.project} - ${rfq.component} has been approved and closed.`,
+        type: "decision",
+      });
+
+      // Notify assigned suppliers
+      const assignedSupplierIds = state.rfqSuppliers
+        .filter((rs) => rs.rfqId === qcs.rfqId)
+        .map((rs) => rs.supplierId);
+
+      assignedSupplierIds.forEach((supplierId) => {
+        addNotification({
+          role: "supplier",
+          supplierId,
+          rfqId: qcs.rfqId,
+          title: "Award Outcome",
+          message: `A decision has been made for RFQ ${qcs.rfqId} - ${rfq.project}. Please check the results.`,
+          type: "decision",
+        });
+      });
+    }
   }
 
-  function handleSendBack(qcsId: string) {
+  function handleReject(qcsId: string) {
     const qcs = state.qcs.find((q) => q.id === qcsId);
     if (!qcs) return;
-    updateQCS(qcsId, { status: "Sent Back" });
+    const rfq = state.rfqs.find((r) => r.id === qcs.rfqId);
+    
+    updateQCS(qcsId, {
+      status: "rejected",
+      hopDecisionAt: new Date().toISOString(),
+      hopComment: rejectComment || undefined,
+    });
+
+    // Notify procurement
+    addNotification({
+      role: "procurement",
+      rfqId: qcs.rfqId,
+      title: "QCS Rejected",
+      message: `QCS ${qcsId} for ${rfq?.project || "Unknown"} has been rejected by Head of Procurement.${rejectComment ? ` Comment: "${rejectComment}"` : ""}`,
+      type: "decision",
+    });
+
+    setRejectDialog(null);
+    setRejectComment("");
+  }
+
+  function handleRequestNegotiation(qcsId: string) {
+    const qcs = state.qcs.find((q) => q.id === qcsId);
+    if (!qcs) return;
+    const rfq = state.rfqs.find((r) => r.id === qcs.rfqId);
+    
+    updateQCS(qcsId, {
+      status: "needs_negotiation",
+      hopDecisionAt: new Date().toISOString(),
+    });
     updateRFQ(qcs.rfqId, { status: "In Negotiation" });
+
+    // Notify procurement
+    addNotification({
+      role: "procurement",
+      rfqId: qcs.rfqId,
+      title: "QCS Needs Negotiation",
+      message: `QCS ${qcsId} for ${rfq?.project || "Unknown"} has been sent back by Head of Procurement for further negotiation.`,
+      type: "decision",
+    });
   }
 
   return (
@@ -92,19 +207,24 @@ export function HOPDashboard() {
         })}
       </div>
 
-      {/* QCS Review */}
+      {/* QCS Pending Approval */}
       <Card className="border-border">
         <CardHeader className="px-4 py-3">
           <CardTitle className="flex items-center gap-2 text-xs font-semibold">
             <BarChart3 className="h-3.5 w-3.5" />
-            QCS for Review
+            QCS Pending Approval
+            {pendingQCS.length > 0 && (
+              <Badge className="bg-amber-600 text-white text-[10px] border-0 ml-2">
+                {pendingQCS.length}
+              </Badge>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="px-0 pb-0">
-          {state.qcs.length === 0 ? (
+          {pendingQCS.length === 0 ? (
             <div className="px-4 pb-6 text-center">
               <p className="text-xs text-muted-foreground">
-                No QCS to review yet.
+                No QCS pending approval.
               </p>
             </div>
           ) : (
@@ -115,16 +235,16 @@ export function HOPDashboard() {
                     QCS ID
                   </TableHead>
                   <TableHead className="text-[10px] font-semibold uppercase h-8">
-                    RFQ
+                    RFQ ID
                   </TableHead>
                   <TableHead className="text-[10px] font-semibold uppercase h-8">
                     Project
                   </TableHead>
                   <TableHead className="text-[10px] font-semibold uppercase h-8">
-                    Budget
+                    Created By
                   </TableHead>
                   <TableHead className="text-[10px] font-semibold uppercase h-8">
-                    Suppliers
+                    Submitted
                   </TableHead>
                   <TableHead className="text-[10px] font-semibold uppercase h-8">
                     Recommended
@@ -138,13 +258,13 @@ export function HOPDashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {state.qcs.map((qcs) => {
+                {pendingQCS.map((qcs) => {
                   const quotations = state.quotations.filter(
                     (q) => q.rfqId === qcs.rfqId
                   );
                   const supplierInfo = quotations.map((q) => {
                     const s = state.suppliers.find(
-                      (s) => s.id === q.supplierId
+                      (sup) => sup.id === q.supplierId
                     );
                     const val =
                       q.finalAwardValue || q.totalPrice + q.bonusMalus;
@@ -154,6 +274,10 @@ export function HOPDashboard() {
                   const recommended = supplierInfo.sort(
                     (a, b) => a.value - b.value
                   )[0];
+                  
+                  const createdByUser = state.users.find(
+                    (u) => u.id === qcs.createdByUserId
+                  );
 
                   return (
                     <TableRow key={qcs.id} className="hover:bg-muted/50">
@@ -165,10 +289,12 @@ export function HOPDashboard() {
                       </TableCell>
                       <TableCell className="text-xs">{qcs.project}</TableCell>
                       <TableCell className="text-xs">
-                        {qcs.budget.toLocaleString("de-DE")} EUR
+                        {createdByUser?.name || "Unknown"}
                       </TableCell>
                       <TableCell className="text-xs">
-                        {supplierInfo.map((s) => s.name).join(", ")}
+                        {qcs.submittedToHopAt
+                          ? new Date(qcs.submittedToHopAt).toLocaleDateString("de-DE")
+                          : "—"}
                       </TableCell>
                       <TableCell>
                         {recommended ? (
@@ -182,40 +308,48 @@ export function HOPDashboard() {
                       </TableCell>
                       <TableCell>
                         <Badge
-                          className={`text-[10px] border-0 text-white ${
-                            qcs.status === "Approved"
-                              ? "bg-emerald-600"
-                              : qcs.status === "Sent Back"
-                              ? "bg-orange-600"
-                              : "bg-zinc-500"
-                          }`}
+                          className={`text-[10px] border-0 text-white ${statusColors[qcs.status]}`}
                         >
-                          {qcs.status}
+                          {statusLabels[qcs.status]}
                         </Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          {qcs.status === "Pending" && (
-                            <>
-                              <Button
-                                size="sm"
-                                className="h-6 gap-1 px-2 text-[10px] bg-emerald-600 text-white hover:bg-emerald-700"
-                                onClick={() => handleApprove(qcs.id)}
-                              >
-                                <CheckCircle className="h-3 w-3" />
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-6 gap-1 px-2 text-[10px]"
-                                onClick={() => handleSendBack(qcs.id)}
-                              >
-                                <RotateCcw className="h-3 w-3" />
-                                Send Back
-                              </Button>
-                            </>
-                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 gap-1 px-2 text-[10px]"
+                            onClick={() => setCurrentPage("qcs")}
+                          >
+                            <Eye className="h-3 w-3" />
+                            View
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="h-6 gap-1 px-2 text-[10px] bg-emerald-600 text-white hover:bg-emerald-700"
+                            onClick={() => handleApprove(qcs.id)}
+                          >
+                            <CheckCircle className="h-3 w-3" />
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-6 gap-1 px-2 text-[10px] border-red-600 text-red-600 hover:bg-red-50"
+                            onClick={() => setRejectDialog(qcs.id)}
+                          >
+                            <XCircle className="h-3 w-3" />
+                            Reject
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-6 gap-1 px-2 text-[10px]"
+                            onClick={() => handleRequestNegotiation(qcs.id)}
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                            Negotiate
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -294,6 +428,54 @@ export function HOPDashboard() {
       </Card>
 
       {chatRFQId && <ChatPanel rfqId={chatRFQId} />}
+
+      {/* Reject Dialog */}
+      <Dialog
+        open={!!rejectDialog}
+        onOpenChange={() => {
+          setRejectDialog(null);
+          setRejectComment("");
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-semibold">
+              Reject QCS — {rejectDialog}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <div>
+              <Label className="text-xs">Comment (optional)</Label>
+              <Input
+                placeholder="Enter reason for rejection..."
+                value={rejectComment}
+                onChange={(e) => setRejectComment(e.target.value)}
+                className="text-xs mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              onClick={() => {
+                setRejectDialog(null);
+                setRejectComment("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="bg-red-600 text-white text-xs hover:bg-red-700"
+              onClick={() => rejectDialog && handleReject(rejectDialog)}
+            >
+              Reject QCS
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

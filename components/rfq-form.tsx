@@ -31,7 +31,7 @@ interface RFQFormProps {
 }
 
 export function RFQForm({ open, onClose, editId }: RFQFormProps) {
-  const { addRFQ, updateRFQ, state, getCurrentUser } = useStore();
+  const { addRFQ, updateRFQ, state, getCurrentUser, addNotification } = useStore();
   const editRFQ = editId ? state.rfqs.find((r) => r.id === editId) : null;
 
   const [form, setForm] = useState({
@@ -67,8 +67,28 @@ export function RFQForm({ open, onClose, editId }: RFQFormProps) {
     const user = getCurrentUser();
     if (editId) {
       updateRFQ(editId, { ...form, status });
+      // Notify procurement if RFQ was submitted
+      if (status === "Submitted") {
+        addNotification({
+          role: "procurement",
+          rfqId: editId,
+          title: "RFQ Updated",
+          message: `RFQ ${editId} for ${form.project} - ${form.component} has been updated and resubmitted.`,
+          type: "rfq",
+        });
+      }
     } else {
-      addRFQ({ ...form, status, createdBy: user.id });
+      const rfqId = addRFQ({ ...form, status, createdBy: user.id });
+      // Notify procurement when engineer submits RFQ
+      if (status === "Submitted") {
+        addNotification({
+          role: "procurement",
+          rfqId,
+          title: "New RFQ Submitted",
+          message: `${user.name} submitted a new RFQ for ${form.project} - ${form.component}. Budget: ${form.budget.toLocaleString("de-DE")} EUR`,
+          type: "rfq",
+        });
+      }
     }
     onClose();
   }
