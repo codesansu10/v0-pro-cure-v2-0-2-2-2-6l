@@ -24,6 +24,9 @@ function DashboardContent() {
       return <ProcurementDashboard />;
     case "supplier_a":
     case "supplier_b":
+    case "supplier_c":
+    case "supplier_d":
+    case "supplier_e":
       return <SupplierDashboard />;
     case "hop":
       return <HOPDashboard />;

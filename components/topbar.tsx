@@ -16,8 +16,11 @@ import { Badge } from "@/components/ui/badge";
 const roleLabels: Record<Role, string> = {
   engineer: "Engineer",
   procurement: "Procurement",
-  supplier_a: "Supplier A",
-  supplier_b: "Supplier B",
+  supplier_a: "Supplier A (Steel Corp)",
+  supplier_b: "Supplier B (MetalWorks)",
+  supplier_c: "Supplier C (Precision)",
+  supplier_d: "Supplier D (AlloyTech)",
+  supplier_e: "Supplier E (EuroForge)",
   hop: "Head of Procurement",
 };
 
@@ -26,6 +29,9 @@ const roleColors: Record<Role, string> = {
   procurement: "bg-[#00A0E3]",
   supplier_a: "bg-amber-600",
   supplier_b: "bg-amber-700",
+  supplier_c: "bg-orange-600",
+  supplier_d: "bg-orange-700",
+  supplier_e: "bg-orange-800",
   hop: "bg-red-700",
 };
 
