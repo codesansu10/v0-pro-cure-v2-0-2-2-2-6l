@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { StatusBadge } from "./status-badge";
 import { ChatPanel } from "./chat-panel";
+import { HopQCSDetailView } from "./hop-qcs-detail-view";
 import { useState } from "react";
 import {
   CheckCircle,
@@ -54,10 +55,11 @@ const statusColors: Record<QCSStatus, string> = {
 };
 
 export function HOPDashboard() {
-  const { state, updateQCS, updateRFQ, addNotification, setCurrentPage } = useStore();
+  const { state, updateQCS, updateRFQ, addNotification } = useStore();
   const [chatRFQId, setChatRFQId] = useState<string | null>(null);
   const [rejectDialog, setRejectDialog] = useState<string | null>(null);
   const [rejectComment, setRejectComment] = useState("");
+  const [selectedQcsId, setSelectedQcsId] = useState<string | null>(null);
 
   const totalRFQs = state.rfqs.length;
   const totalBudget = state.rfqs.reduce((s, r) => s + r.budget, 0);
@@ -69,6 +71,16 @@ export function HOPDashboard() {
   const pendingQCS = state.qcs.filter(
     (q) => q.status === "submitted_for_approval" || q.status === "needs_negotiation"
   );
+
+  // If a QCS is selected, show the detail view
+  if (selectedQcsId) {
+    return (
+      <HopQCSDetailView
+        qcsId={selectedQcsId}
+        onBack={() => setSelectedQcsId(null)}
+      />
+    );
+  }
 
   function handleApprove(qcsId: string) {
     const qcs = state.qcs.find((q) => q.id === qcsId);
@@ -319,7 +331,7 @@ export function HOPDashboard() {
                             variant="ghost"
                             size="sm"
                             className="h-6 gap-1 px-2 text-[10px]"
-                            onClick={() => setCurrentPage("qcs")}
+                            onClick={() => setSelectedQcsId(qcs.id)}
                           >
                             <Eye className="h-3 w-3" />
                             View
