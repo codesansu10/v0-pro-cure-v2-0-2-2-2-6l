@@ -21,7 +21,7 @@ interface ChatPanelProps {
  * - HoP can read engineer_procurement thread only (read-only)
  */
 export function ChatPanel({ rfqId }: ChatPanelProps) {
-  const { state, addMessage, currentRole, getCurrentUser } = useStore();
+  const { state, addMessage, currentRole, getCurrentUser, addNotification } = useStore();
   const [text, setText] = useState("");
   const user = getCurrentUser();
 
@@ -122,6 +122,54 @@ export function ChatPanel({ rfqId }: ChatPanelProps) {
       senderRole: currentRole,
       message: text.trim(),
     });
+
+    // Send notification to the recipient
+    const rfq = state.rfqs.find((r) => r.id === rfqId);
+    const msgPreview = text.trim().substring(0, 50) + (text.trim().length > 50 ? "..." : "");
+
+    if (isEngineer) {
+      // Engineer sends to procurement
+      addNotification({
+        role: "procurement",
+        rfqId,
+        title: `New Message from Engineer`,
+        message: `${user.name} sent a message in RFQ ${rfqId}: "${msgPreview}"`,
+        type: "chat",
+      });
+    } else if (isSupplierRole && currentSupplierId) {
+      // Supplier sends to procurement (private thread)
+      addNotification({
+        role: "procurement",
+        rfqId,
+        supplierId: currentSupplierId,
+        title: `New Message from Supplier`,
+        message: `${user.name} sent a message in RFQ ${rfqId}: "${msgPreview}"`,
+        type: "chat",
+      });
+    } else if (isProcurement) {
+      if (threadType === "engineer_procurement") {
+        // Procurement sends to engineer
+        addNotification({
+          role: "engineer",
+          userId: rfq?.createdBy,
+          rfqId,
+          title: `Message from Procurement`,
+          message: `Procurement sent a message regarding RFQ ${rfqId}: "${msgPreview}"`,
+          type: "chat",
+        });
+      } else if (threadType === "supplier_procurement" && supplierId) {
+        // Procurement sends to supplier (private thread)
+        addNotification({
+          role: "supplier",
+          supplierId,
+          rfqId,
+          title: `Message from Procurement`,
+          message: `Procurement sent a message regarding RFQ ${rfqId}: "${msgPreview}"`,
+          type: "chat",
+        });
+      }
+    }
+
     setText("");
   }
 

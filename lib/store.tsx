@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useCallback, useRef } from "react";
-import type { AppState, Role, RFQ, Quotation, QCS, Message, RFQSupplier, Supplier } from "./types";
+import type { AppState, Role, RFQ, Quotation, QCS, Message, RFQSupplier, Supplier, Notification } from "./types";
 
 const defaultUsers = [
   { id: "USR-001", name: "Max Mueller", role: "engineer" as Role, email: "m.mueller@thyssenkrupp.com" },
@@ -100,6 +100,7 @@ const initialState: AppState = {
   quotations: [],
   qcs: [],
   messages: [],
+  notifications: [],
 };
 
 interface StoreContextType {
@@ -117,6 +118,11 @@ interface StoreContextType {
   updateQCS: (id: string, updates: Partial<QCS>) => void;
   addMessage: (message: Omit<Message, "id" | "timestamp">) => void;
   addSupplier: (supplier: Omit<Supplier, "id">) => void;
+  addNotification: (notification: Omit<Notification, "id" | "createdAt" | "read">) => void;
+  markNotificationRead: (id: string) => void;
+  markAllNotificationsRead: () => void;
+  clearReadNotifications: () => void;
+  getUnreadCount: () => number;
   generateId: (prefix: string) => string;
   getCurrentUser: () => typeof defaultUsers[0];
   selectedRFQId: string | null;
@@ -244,6 +250,58 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [generateId]
   );
 
+  const addNotification = useCallback(
+    (notification: Omit<Notification, "id" | "createdAt" | "read">) => {
+      const id = generateId("NOT");
+      setState((prev) => ({
+        ...prev,
+        notifications: [
+          { ...notification, id, createdAt: new Date().toISOString(), read: false },
+          ...prev.notifications,
+        ],
+      }));
+    },
+    [generateId]
+  );
+
+  const markNotificationRead = useCallback((id: string) => {
+    setState((prev) => ({
+      ...prev,
+      notifications: prev.notifications.map((n) =>
+        n.id === id ? { ...n, read: true } : n
+      ),
+    }));
+  }, []);
+
+  const markAllNotificationsRead = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      notifications: prev.notifications.map((n) => ({ ...n, read: true })),
+    }));
+  }, []);
+
+  const clearReadNotifications = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      notifications: prev.notifications.filter((n) => !n.read),
+    }));
+  }, []);
+
+  const getUnreadCount = useCallback(() => {
+    // Filter by current role visibility
+    const visibleNotifs = state.notifications.filter((n) => {
+      if (currentRole === "procurement") return n.role === "procurement";
+      if (currentRole === "engineer") return n.role === "engineer" && n.userId === getCurrentUser().id;
+      if (currentRole === "hop") return n.role === "hop";
+      if (currentRole.startsWith("supplier_")) {
+        const supplier = state.suppliers.find((s) => s.role === currentRole);
+        return n.role === "supplier" && n.supplierId === supplier?.id;
+      }
+      return false;
+    });
+    return visibleNotifs.filter((n) => !n.read).length;
+  }, [state.notifications, state.suppliers, currentRole, getCurrentUser]);
+
   return (
     <StoreContext.Provider
       value={{
@@ -261,6 +319,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         updateQCS,
         addMessage,
         addSupplier,
+        addNotification,
+        markNotificationRead,
+        markAllNotificationsRead,
+        clearReadNotifications,
+        getUnreadCount,
         generateId,
         getCurrentUser,
         selectedRFQId,

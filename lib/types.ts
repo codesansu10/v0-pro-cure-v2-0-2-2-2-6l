@@ -102,6 +102,22 @@ export interface Message {
   timestamp: string;
 }
 
+export type NotificationRole = "engineer" | "procurement" | "supplier" | "hop";
+export type NotificationType = "rfq" | "quote" | "chat" | "qcs" | "decision" | "system";
+
+export interface Notification {
+  id: string;
+  role: NotificationRole;
+  userId?: string;
+  rfqId?: string;
+  supplierId?: string;
+  title: string;
+  message: string;
+  type: NotificationType;
+  createdAt: string;
+  read: boolean;
+}
+
 export interface AppState {
   users: User[];
   rfqs: RFQ[];
@@ -110,4 +126,5 @@ export interface AppState {
   quotations: Quotation[];
   qcs: QCS[];
   messages: Message[];
+  notifications: Notification[];
 }

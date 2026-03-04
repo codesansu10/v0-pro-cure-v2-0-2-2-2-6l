@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useStore } from "@/lib/store";
 import type { Role } from "@/lib/types";
 import { Bell, User } from "lucide-react";
 import { TkLogo } from "@/components/tk-logo";
+import { NotificationsPanel } from "@/components/notifications-panel";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -36,9 +39,10 @@ const roleColors: Record<Role, string> = {
 };
 
 export function Topbar() {
-  const { currentRole, setCurrentRole, getCurrentUser, state } = useStore();
+  const { currentRole, setCurrentRole, getCurrentUser, getUnreadCount } = useStore();
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const user = getCurrentUser();
-  const unreadCount = state.messages.length;
+  const unreadCount = getUnreadCount();
 
   return (
     <header className="flex h-14 items-center justify-between border-b border-border bg-card px-6">
@@ -73,14 +77,24 @@ export function Topbar() {
           </SelectContent>
         </Select>
 
-        <div className="relative">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="relative h-8 w-8 p-0"
+          onClick={() => setNotificationsOpen(true)}
+        >
           <Bell className="h-4 w-4 text-muted-foreground" />
           {unreadCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#00A0E3] text-[9px] font-bold text-white">
+            <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#00A0E3] text-[9px] font-bold text-white">
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           )}
-        </div>
+        </Button>
+
+        <NotificationsPanel
+          open={notificationsOpen}
+          onClose={() => setNotificationsOpen(false)}
+        />
 
         <div className="flex items-center gap-2">
           <Badge

@@ -35,7 +35,7 @@ import { FileText, Send, MessageSquare, Eye } from "lucide-react";
 import { TkLogo } from "@/components/tk-logo";
 
 export function SupplierDashboard() {
-  const { state, currentRole, addQuotation, updateRFQ } = useStore();
+  const { state, currentRole, addQuotation, updateRFQ, addNotification } = useStore();
   const [quoteDialog, setQuoteDialog] = useState<string | null>(null);
   const [chatRFQId, setChatRFQId] = useState<string | null>(null);
   const [viewRFQ, setViewRFQ] = useState<string | null>(null);
@@ -62,12 +62,21 @@ export function SupplierDashboard() {
   );
 
   function handleSubmitQuotation(rfqId: string) {
+    const rfq = state.rfqs.find((r) => r.id === rfqId);
     addQuotation({
       rfqId,
       supplierId: supplier!.id,
       ...quoteForm,
     });
     updateRFQ(rfqId, { status: "Quote Received" });
+    // Notify procurement
+    addNotification({
+      role: "procurement",
+      rfqId,
+      title: `Quote Received from ${supplier!.name}`,
+      message: `${supplier!.name} submitted a quotation of ${quoteForm.totalPrice.toLocaleString("de-DE")} EUR for ${rfq?.project || "Unknown"} - ${rfq?.component || "Unknown"}.`,
+      type: "quote",
+    });
     setQuoteDialog(null);
     setQuoteForm({
       totalPrice: 0,

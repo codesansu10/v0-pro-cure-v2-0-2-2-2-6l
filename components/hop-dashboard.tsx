@@ -26,7 +26,7 @@ import {
 import { TkLogo } from "@/components/tk-logo";
 
 export function HOPDashboard() {
-  const { state, updateQCS, updateRFQ } = useStore();
+  const { state, updateQCS, updateRFQ, addNotification } = useStore();
   const [chatRFQId, setChatRFQId] = useState<string | null>(null);
 
   const totalRFQs = state.rfqs.length;
@@ -38,15 +38,63 @@ export function HOPDashboard() {
   function handleApprove(qcsId: string) {
     const qcs = state.qcs.find((q) => q.id === qcsId);
     if (!qcs) return;
+    const rfq = state.rfqs.find((r) => r.id === qcs.rfqId);
     updateQCS(qcsId, { status: "Approved" });
     updateRFQ(qcs.rfqId, { status: "Closed" });
+
+    // Notify procurement
+    addNotification({
+      role: "procurement",
+      rfqId: qcs.rfqId,
+      title: "QCS Approved",
+      message: `QCS ${qcsId} for ${rfq?.project || "Unknown"} has been approved by Head of Procurement.`,
+      type: "decision",
+    });
+
+    // Notify engineer
+    if (rfq) {
+      addNotification({
+        role: "engineer",
+        userId: rfq.createdBy,
+        rfqId: qcs.rfqId,
+        title: "RFQ Decision Update",
+        message: `Your RFQ ${qcs.rfqId} for ${rfq.project} - ${rfq.component} has been approved and closed.`,
+        type: "decision",
+      });
+
+      // Notify assigned suppliers
+      const assignedSupplierIds = state.rfqSuppliers
+        .filter((rs) => rs.rfqId === qcs.rfqId)
+        .map((rs) => rs.supplierId);
+
+      assignedSupplierIds.forEach((supplierId) => {
+        addNotification({
+          role: "supplier",
+          supplierId,
+          rfqId: qcs.rfqId,
+          title: "Award Outcome",
+          message: `A decision has been made for RFQ ${qcs.rfqId} - ${rfq.project}. Please check the results.`,
+          type: "decision",
+        });
+      });
+    }
   }
 
   function handleSendBack(qcsId: string) {
     const qcs = state.qcs.find((q) => q.id === qcsId);
     if (!qcs) return;
+    const rfq = state.rfqs.find((r) => r.id === qcs.rfqId);
     updateQCS(qcsId, { status: "Sent Back" });
     updateRFQ(qcs.rfqId, { status: "In Negotiation" });
+
+    // Notify procurement
+    addNotification({
+      role: "procurement",
+      rfqId: qcs.rfqId,
+      title: "QCS Sent Back",
+      message: `QCS ${qcsId} for ${rfq?.project || "Unknown"} has been sent back by Head of Procurement for further negotiation.`,
+      type: "decision",
+    });
   }
 
   return (
