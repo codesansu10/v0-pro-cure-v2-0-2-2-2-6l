@@ -52,7 +52,8 @@ export function ChatPanel({ rfqId }: ChatPanelProps) {
   // Compute visible messages based on role and active thread
   const visibleMessages = useMemo(() => {
     return state.messages.filter((m) => {
-      if (m.rfqId !== rfqId) return false;
+      // For RFQ-scoped threads, filter by rfqId
+      if (!m.rfqId || m.rfqId !== rfqId) return false;
 
       if (isEngineer || isHoP) {
         // Engineer/HoP only sees engineer_procurement thread

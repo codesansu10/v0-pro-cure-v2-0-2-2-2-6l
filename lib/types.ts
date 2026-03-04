@@ -99,11 +99,12 @@ export interface QCS {
   hopComment?: string;
 }
 
-export type ThreadType = "engineer_procurement" | "supplier_procurement";
+export type ThreadType = "engineer_procurement" | "supplier_procurement" | "hop_procurement";
 
 export interface Message {
   id: string;
-  rfqId: string;
+  rfqId?: string;
+  qcsId?: string; // for hop_procurement threads
   threadType: ThreadType;
   supplierId?: string; // only for supplier_procurement threads
   sender: string;
@@ -121,6 +122,7 @@ export interface Notification {
   role: NotificationRole;
   userId?: string;
   rfqId?: string;
+  qcsId?: string;
   supplierId?: string;
   title: string;
   message: string;

@@ -12,9 +12,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { BarChart3, Download, Send } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BarChart3, Download, Send, MessageSquare } from "lucide-react";
 import { TkLogo } from "@/components/tk-logo";
+import { HopChatPanel } from "@/components/hop-chat-panel";
 import type { QCSStatus } from "@/lib/types";
+import { useState } from "react";
 
 const statusLabels: Record<QCSStatus, string> = {
   draft: "Draft",
@@ -34,6 +37,7 @@ const statusColors: Record<QCSStatus, string> = {
 
 export function QCSView() {
   const { state, updateQCS, updateRFQ, currentRole, getCurrentUser, addNotification } = useStore();
+  const [selectedQcsId, setSelectedQcsId] = useState<string | null>(null);
   const user = getCurrentUser();
   const isProcurement = currentRole === "procurement";
 
@@ -202,6 +206,26 @@ export function QCSView() {
                     <Download className="h-3 w-3" />
                     Export QCS to Excel
                   </Button>
+                  {/* HoP Chat toggle button - only for Procurement */}
+                  {isProcurement && (
+                    <Button
+                      variant={selectedQcsId === qcs.id ? "default" : "outline"}
+                      size="sm"
+                      className={`h-6 gap-1 px-2 text-[10px] ${
+                        selectedQcsId === qcs.id
+                          ? "bg-[#00A0E3] text-white hover:bg-[#0090cc]"
+                          : ""
+                      }`}
+                      onClick={() =>
+                        setSelectedQcsId(
+                          selectedQcsId === qcs.id ? null : qcs.id
+                        )
+                      }
+                    >
+                      <MessageSquare className="h-3 w-3" />
+                      HoP Chat
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardHeader>
@@ -520,6 +544,13 @@ export function QCSView() {
                     </TableRow>
                   </TableBody>
                 </Table>
+              )}
+
+              {/* HoP Chat Panel - shown when this QCS is selected for chat */}
+              {isProcurement && selectedQcsId === qcs.id && (
+                <div className="mt-4 pt-4 border-t border-border">
+                  <HopChatPanel qcsId={qcs.id} />
+                </div>
               )}
             </CardContent>
           </Card>

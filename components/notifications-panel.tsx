@@ -54,13 +54,14 @@ export function NotificationsPanel({ open, onClose }: NotificationsPanelProps) {
 
   const unreadCount = visibleNotifications.filter((n) => !n.read).length;
 
-  function handleViewNotification(notifId: string, rfqId?: string, type?: NotificationType) {
+  function handleViewNotification(notifId: string, rfqId?: string, qcsId?: string, type?: NotificationType) {
     markNotificationRead(notifId);
-    if (rfqId) {
+    if (qcsId || type === "qcs") {
+      // QCS-related notification - go to QCS page
+      setCurrentPage("qcs");
+    } else if (rfqId) {
       setSelectedRFQId(rfqId);
-      if (type === "qcs") {
-        setCurrentPage("qcs");
-      } else if (type === "chat") {
+      if (type === "chat") {
         setCurrentPage("rfqs");
       } else {
         setCurrentPage("rfqs");
@@ -178,13 +179,13 @@ export function NotificationsPanel({ open, onClose }: NotificationsPanelProps) {
                       <span className="text-[10px] text-muted-foreground">
                         {formatTime(notif.createdAt)}
                       </span>
-                      {notif.rfqId && (
+                      {(notif.rfqId || notif.qcsId) && (
                         <Button
                           variant="link"
                           size="sm"
                           className="h-auto p-0 text-[10px] text-[#00A0E3]"
                           onClick={() =>
-                            handleViewNotification(notif.id, notif.rfqId, notif.type)
+                            handleViewNotification(notif.id, notif.rfqId, notif.qcsId, notif.type)
                           }
                         >
                           View
