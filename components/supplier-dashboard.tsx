@@ -29,14 +29,24 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { StatusBadge } from "./status-badge";
 import { ChatPanel } from "./chat-panel";
 import { FileText, Send, MessageSquare, Eye, Plus, Trash2, Upload } from "lucide-react";
 import { TkLogo } from "@/components/tk-logo";
-import type { QuotationLineItem } from "@/lib/types";
+import type { QuotationLineItem, RFQSupplierStatus } from "@/lib/types";
+import { Badge } from "@/components/ui/badge";
+
+// Status colors for supplier-specific RFQ status
+const supplierStatusColors: Record<RFQSupplierStatus, string> = {
+  "RFQ Received": "bg-[#00A0E3]",
+  "Quotation Submitted": "bg-emerald-600",
+  "Under Evaluation": "bg-amber-600",
+  "Awarded": "bg-emerald-600",
+  "Not Awarded": "bg-zinc-500",
+  "Withdrawn": "bg-red-600",
+};
 
 export function SupplierDashboard() {
-  const { state, currentRole, addQuotation, updateRFQ, addNotification } = useStore();
+  const { state, currentRole, addQuotation, updateRFQSupplier, addNotification } = useStore();
   const [quoteDialog, setQuoteDialog] = useState<string | null>(null);
   const [chatRFQId, setChatRFQId] = useState<string | null>(null);
   const [viewRFQ, setViewRFQ] = useState<string | null>(null);
@@ -109,7 +119,11 @@ export function SupplierDashboard() {
       supportingDocsUrl: supportingDocs ? URL.createObjectURL(supportingDocs) : undefined,
       ...quoteForm,
     });
-    updateRFQ(rfqId, { status: "Quote Received" });
+    // Update only this supplier's status - not the global RFQ status
+    updateRFQSupplier(rfqId, supplier!.id, { 
+      status: "Quotation Submitted", 
+      quoted: true 
+    });
     // Notify procurement
     addNotification({
       role: "procurement",
@@ -228,9 +242,13 @@ export function SupplierDashboard() {
               </TableHeader>
               <TableBody>
                 {myRFQs.map((rfq) => {
-                  const hasQuoted = myQuotations.some(
-                    (q) => q.rfqId === rfq.id
+                  // Get the supplier-specific assignment record for this RFQ
+                  const supplierAssignment = state.rfqSuppliers.find(
+                    (rs) => rs.rfqId === rfq.id && rs.supplierId === supplier.id
                   );
+                  const supplierStatus = supplierAssignment?.status || "RFQ Received";
+                  const hasQuoted = supplierAssignment?.quoted || false;
+                  
                   return (
                     <TableRow key={rfq.id} className="hover:bg-muted/50">
                       <TableCell className="text-xs font-mono">
@@ -247,7 +265,9 @@ export function SupplierDashboard() {
                         {rfq.budget.toLocaleString("de-DE")} EUR
                       </TableCell>
                       <TableCell>
-                        <StatusBadge status={rfq.status} supplierView />
+                        <Badge className={`${supplierStatusColors[supplierStatus]} text-white text-[10px] border-0`}>
+                          {supplierStatus}
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-xs">
                         {hasQuoted ? (

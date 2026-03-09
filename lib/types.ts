@@ -53,10 +53,20 @@ export interface Supplier {
   riskScore: number;
 }
 
+export type RFQSupplierStatus = 
+  | "RFQ Received"
+  | "Quotation Submitted"
+  | "Under Evaluation"
+  | "Awarded"
+  | "Not Awarded"
+  | "Withdrawn";
+
 export interface RFQSupplier {
   rfqId: string;
   supplierId: string;
   assignedAt: string;
+  status: RFQSupplierStatus;
+  quoted: boolean;
 }
 
 export interface QuotationLineItem {

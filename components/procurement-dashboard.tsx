@@ -26,7 +26,18 @@ import {
   Truck,
   Download,
 } from "lucide-react";
-import type { RFQStatus } from "@/lib/types";
+import type { RFQStatus, RFQSupplierStatus } from "@/lib/types";
+import { Badge } from "@/components/ui/badge";
+
+// Supplier status colors for display in procurement view
+const supplierStatusColors: Record<RFQSupplierStatus, string> = {
+  "RFQ Received": "bg-[#00A0E3]",
+  "Quotation Submitted": "bg-emerald-600",
+  "Under Evaluation": "bg-amber-600",
+  "Awarded": "bg-emerald-600",
+  "Not Awarded": "bg-zinc-500",
+  "Withdrawn": "bg-red-600",
+};
 import { TkLogo } from "@/components/tk-logo";
 import {
   Dialog,
@@ -349,11 +360,24 @@ export function ProcurementDashboard() {
               </TableHeader>
               <TableBody>
                 {state.rfqs.map((rfq) => {
-                  const assignedSuppliers = state.rfqSuppliers
-                    .filter((rs) => rs.rfqId === rfq.id)
+                  const rfqSupplierAssignments = state.rfqSuppliers.filter((rs) => rs.rfqId === rfq.id);
+                  const assignedSuppliers = rfqSupplierAssignments
                     .map((rs) => state.suppliers.find((s) => s.id === rs.supplierId))
                     .filter(Boolean);
-                  const actions = getAvailableActions(rfq.id, rfq.status);
+                  
+                  // Calculate quotes status
+                  const quotedCount = rfqSupplierAssignments.filter((rs) => rs.quoted).length;
+                  const totalAssigned = rfqSupplierAssignments.length;
+                  const allQuoted = totalAssigned > 0 && quotedCount === totalAssigned;
+                  const someQuoted = quotedCount > 0;
+                  
+                  // Determine effective status based on supplier quotes
+                  let effectiveStatus = rfq.status;
+                  if (rfq.status === "Sent to Supplier" && someQuoted) {
+                    effectiveStatus = "Quote Received";
+                  }
+                  
+                  const actions = getAvailableActions(rfq.id, effectiveStatus);
                   return (
                     <TableRow key={rfq.id} className="hover:bg-muted/50">
                       <TableCell className="text-xs font-mono">
@@ -368,12 +392,35 @@ export function ProcurementDashboard() {
                         {rfq.budget.toLocaleString("de-DE")} EUR
                       </TableCell>
                       <TableCell className="text-xs">
-                        {assignedSuppliers.length > 0
-                          ? assignedSuppliers.map((s) => s!.name).join(", ")
-                          : "—"}
+                        {assignedSuppliers.length > 0 ? (
+                          <div className="flex flex-col gap-1">
+                            {state.rfqSuppliers
+                              .filter((rs) => rs.rfqId === rfq.id)
+                              .map((rs) => {
+                                const sup = state.suppliers.find((s) => s.id === rs.supplierId);
+                                return (
+                                  <div key={rs.supplierId} className="flex items-center gap-1.5">
+                                    <span className="text-[10px]">{sup?.name}</span>
+                                    <Badge className={`${supplierStatusColors[rs.status]} text-white text-[8px] px-1 py-0 border-0`}>
+                                      {rs.quoted ? "Quoted" : "Pending"}
+                                    </Badge>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        ) : (
+                          "—"
+                        )}
                       </TableCell>
                       <TableCell>
-                        <StatusBadge status={rfq.status} />
+                        <div className="flex flex-col gap-1">
+                          <StatusBadge status={effectiveStatus} />
+                          {totalAssigned > 0 && (
+                            <span className="text-[9px] text-muted-foreground">
+                              {quotedCount}/{totalAssigned} quoted
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
