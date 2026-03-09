@@ -15,7 +15,18 @@ const globalForSupabase = globalThis as unknown as {
 };
 
 export const supabase =
-  globalForSupabase.supabase ?? createClient(supabaseUrl, supabaseAnonKey);
+  globalForSupabase.supabase ??
+  createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      storageKey: "procure-app-auth",
+    },
+    global: {
+      headers: {
+        "x-client-info": "procure-app",
+      },
+    },
+  });
 
 if (process.env.NODE_ENV !== "production") {
   globalForSupabase.supabase = supabase;
