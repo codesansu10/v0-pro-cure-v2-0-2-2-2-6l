@@ -24,8 +24,20 @@ import {
   BarChart3,
   Plus,
   Truck,
+  Download,
 } from "lucide-react";
-import type { RFQStatus } from "@/lib/types";
+import type { RFQStatus, RFQSupplierStatus } from "@/lib/types";
+import { Badge } from "@/components/ui/badge";
+
+// Supplier status colors for display in procurement view
+const supplierStatusColors: Record<RFQSupplierStatus, string> = {
+  "RFQ Received": "bg-[#00A0E3]",
+  "Quotation Submitted": "bg-emerald-600",
+  "Under Evaluation": "bg-amber-600",
+  "Awarded": "bg-emerald-600",
+  "Not Awarded": "bg-zinc-500",
+  "Withdrawn": "bg-red-600",
+};
 import { TkLogo } from "@/components/tk-logo";
 import {
   Dialog,
@@ -123,6 +135,88 @@ export function ProcurementDashboard() {
       status: "draft",
     });
     setCurrentPage("qcs");
+  }
+
+  function handleExportRFQToPDF(rfqId: string) {
+    const rfq = state.rfqs.find((r) => r.id === rfqId);
+    if (!rfq) return;
+
+    const assignedSuppliers = state.rfqSuppliers
+      .filter((rs) => rs.rfqId === rfqId)
+      .map((rs) => state.suppliers.find((s) => s.id === rs.supplierId))
+      .filter(Boolean);
+
+    const content = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>RFQ ${rfq.id}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
+          h1 { color: #00A0E3; font-size: 24px; margin-bottom: 8px; }
+          h2 { color: #333; font-size: 16px; margin-top: 24px; border-bottom: 1px solid #ddd; padding-bottom: 8px; }
+          .header { margin-bottom: 24px; }
+          .meta { color: #666; font-size: 12px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+          th, td { padding: 8px 12px; text-align: left; border: 1px solid #ddd; font-size: 13px; }
+          th { background: #f5f5f5; font-weight: 600; }
+          .label { color: #666; font-weight: 500; }
+          .value { font-weight: 600; }
+          .supplier-list { margin-top: 8px; }
+          .supplier-item { background: #f9f9f9; padding: 8px 12px; margin-bottom: 4px; border-radius: 4px; }
+          .footer { margin-top: 32px; font-size: 11px; color: #999; border-top: 1px solid #ddd; padding-top: 16px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Request for Quotation</h1>
+          <p class="meta">Generated on ${new Date().toLocaleDateString("de-DE")} | Internal Use Only</p>
+        </div>
+        
+        <h2>RFQ Details</h2>
+        <table>
+          <tr><td class="label">RFQ ID</td><td class="value">${rfq.id}</td></tr>
+          <tr><td class="label">Project</td><td class="value">${rfq.project}</td></tr>
+          <tr><td class="label">Component</td><td class="value">${rfq.component}</td></tr>
+          <tr><td class="label">Quantity</td><td class="value">${rfq.quantity.toLocaleString("de-DE")}</td></tr>
+          <tr><td class="label">Budget</td><td class="value">${rfq.budget.toLocaleString("de-DE")} EUR</td></tr>
+          <tr><td class="label">Delivery Time</td><td class="value">${rfq.deliveryTime} weeks</td></tr>
+          <tr><td class="label">Plant</td><td class="value">${rfq.plant}</td></tr>
+          <tr><td class="label">PSP Element</td><td class="value">${rfq.pspElement}</td></tr>
+          <tr><td class="label">Request Type</td><td class="value">${rfq.requestType}</td></tr>
+          <tr><td class="label">Technical Contact</td><td class="value">${rfq.technicalContact}</td></tr>
+          <tr><td class="label">On-site Visit Required</td><td class="value">${rfq.onSiteVisitRequired ? "Yes" : "No"}</td></tr>
+          <tr><td class="label">Status</td><td class="value">${rfq.status}</td></tr>
+          <tr><td class="label">Created</td><td class="value">${new Date(rfq.createdAt).toLocaleDateString("de-DE")}</td></tr>
+        </table>
+
+        <h2>Selected Suppliers (${assignedSuppliers.length})</h2>
+        <div class="supplier-list">
+          ${assignedSuppliers.length > 0 
+            ? assignedSuppliers.map(s => `
+              <div class="supplier-item">
+                <strong>${s!.name}</strong> (${s!.id})<br/>
+                Contact: ${s!.contactPerson} | Email: ${s!.email}<br/>
+                Rating: ${s!.rating} | Commodity: ${s!.commodityFocus}
+              </div>
+            `).join("")
+            : "<p>No suppliers assigned yet.</p>"
+          }
+        </div>
+
+        <div class="footer">
+          <p>thyssenkrupp ProCure | Confidential Document</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      printWindow.document.write(content);
+      printWindow.document.close();
+      printWindow.print();
+    }
   }
 
   function getAvailableActions(rfqId: string, status: RFQStatus) {
@@ -266,11 +360,24 @@ export function ProcurementDashboard() {
               </TableHeader>
               <TableBody>
                 {state.rfqs.map((rfq) => {
-                  const assignedSuppliers = state.rfqSuppliers
-                    .filter((rs) => rs.rfqId === rfq.id)
+                  const rfqSupplierAssignments = state.rfqSuppliers.filter((rs) => rs.rfqId === rfq.id);
+                  const assignedSuppliers = rfqSupplierAssignments
                     .map((rs) => state.suppliers.find((s) => s.id === rs.supplierId))
                     .filter(Boolean);
-                  const actions = getAvailableActions(rfq.id, rfq.status);
+                  
+                  // Calculate quotes status
+                  const quotedCount = rfqSupplierAssignments.filter((rs) => rs.quoted).length;
+                  const totalAssigned = rfqSupplierAssignments.length;
+                  const allQuoted = totalAssigned > 0 && quotedCount === totalAssigned;
+                  const someQuoted = quotedCount > 0;
+                  
+                  // Determine effective status based on supplier quotes
+                  let effectiveStatus = rfq.status;
+                  if (rfq.status === "Sent to Supplier" && someQuoted) {
+                    effectiveStatus = "Quote Received";
+                  }
+                  
+                  const actions = getAvailableActions(rfq.id, effectiveStatus);
                   return (
                     <TableRow key={rfq.id} className="hover:bg-muted/50">
                       <TableCell className="text-xs font-mono">
@@ -285,12 +392,35 @@ export function ProcurementDashboard() {
                         {rfq.budget.toLocaleString("de-DE")} EUR
                       </TableCell>
                       <TableCell className="text-xs">
-                        {assignedSuppliers.length > 0
-                          ? assignedSuppliers.map((s) => s!.name).join(", ")
-                          : "—"}
+                        {assignedSuppliers.length > 0 ? (
+                          <div className="flex flex-col gap-1">
+                            {state.rfqSuppliers
+                              .filter((rs) => rs.rfqId === rfq.id)
+                              .map((rs) => {
+                                const sup = state.suppliers.find((s) => s.id === rs.supplierId);
+                                return (
+                                  <div key={rs.supplierId} className="flex items-center gap-1.5">
+                                    <span className="text-[10px]">{sup?.name}</span>
+                                    <Badge className={`${supplierStatusColors[rs.status]} text-white text-[8px] px-1 py-0 border-0`}>
+                                      {rs.quoted ? "Quoted" : "Pending"}
+                                    </Badge>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        ) : (
+                          "—"
+                        )}
                       </TableCell>
                       <TableCell>
-                        <StatusBadge status={rfq.status} />
+                        <div className="flex flex-col gap-1">
+                          <StatusBadge status={effectiveStatus} />
+                          {totalAssigned > 0 && (
+                            <span className="text-[9px] text-muted-foreground">
+                              {quotedCount}/{totalAssigned} quoted
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
@@ -316,6 +446,16 @@ export function ProcurementDashboard() {
                             }}
                           >
                             <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 gap-1 px-2 text-[10px]"
+                            onClick={() => handleExportRFQToPDF(rfq.id)}
+                            title="Download RFQ as PDF"
+                          >
+                            <Download className="h-3 w-3" />
+                            PDF
                           </Button>
                           <Button
                             variant="ghost"

@@ -53,10 +53,29 @@ export interface Supplier {
   riskScore: number;
 }
 
+export type RFQSupplierStatus = 
+  | "RFQ Received"
+  | "Quotation Submitted"
+  | "Under Evaluation"
+  | "Awarded"
+  | "Not Awarded"
+  | "Withdrawn";
+
 export interface RFQSupplier {
   rfqId: string;
   supplierId: string;
   assignedAt: string;
+  status: RFQSupplierStatus;
+  quoted: boolean;
+}
+
+export interface QuotationLineItem {
+  id: string;
+  itemName: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
 }
 
 export interface Quotation {
@@ -70,6 +89,9 @@ export interface Quotation {
   incoterms: string;
   comments: string;
   submittedAt: string;
+  lineItems?: QuotationLineItem[];
+  quotationPdfUrl?: string;
+  supportingDocsUrl?: string;
   negotiationRound1?: number;
   negotiationRound2?: number;
   finalAwardValue?: number;

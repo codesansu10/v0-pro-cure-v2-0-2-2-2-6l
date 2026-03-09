@@ -29,7 +29,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Truck, CheckCircle, XCircle, Plus } from "lucide-react";
+import { Truck, CheckCircle, XCircle, Plus, Search, Upload, Filter } from "lucide-react";
 import { TkLogo } from "@/components/tk-logo";
 import type { Supplier } from "@/lib/types";
 
@@ -46,6 +46,67 @@ export function SuppliersPage() {
   const { state, addSupplier } = useStore();
   const [showAddModal, setShowAddModal] = useState(false);
   const [form, setForm] = useState(emptySupplierForm);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterStatus, setFilterStatus] = useState<"all" | "Approved" | "Pending">("all");
+  const [filterRating, setFilterRating] = useState<"all" | "A" | "B" | "C">("all");
+
+  // Filter suppliers based on search and filters
+  const filteredSuppliers = state.suppliers.filter((sup) => {
+    const matchesSearch =
+      searchTerm === "" ||
+      sup.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sup.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sup.commodityFocus.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sup.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = filterStatus === "all" || sup.status === filterStatus;
+    const matchesRating = filterRating === "all" || sup.rating === filterRating;
+    return matchesSearch && matchesStatus && matchesRating;
+  });
+
+  function handleCSVImport(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split("\n").filter((line) => line.trim());
+      const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+      
+      // Expected headers: name, contactPerson, email, commodityFocus, status, rating
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(",").map((v) => v.trim());
+        const row: Record<string, string> = {};
+        headers.forEach((h, idx) => {
+          row[h] = values[idx] || "";
+        });
+
+        // Find next available role
+        const usedRoles = state.suppliers.map(s => s.role);
+        const allRoles: Supplier["role"][] = ["supplier_a", "supplier_b", "supplier_c", "supplier_d", "supplier_e"];
+        const availableRole = allRoles.find(r => !usedRoles.includes(r)) || "supplier_a";
+
+        if (row.name && row.email) {
+          addSupplier({
+            name: row.name || row.companyname || "",
+            contactPerson: row.contactperson || row.contact || "",
+            email: row.email || "",
+            commodityFocus: row.commodityfocus || row.commodity || "",
+            status: (row.status === "Approved" ? "Approved" : "Pending") as "Approved" | "Pending",
+            rating: (["A", "B", "C"].includes(row.rating) ? row.rating : "B") as "A" | "B" | "C",
+            role: availableRole,
+            approved: row.status === "Approved",
+            capacityConfirmed: false,
+            technicalCompliance: false,
+            commercialSpecCompliant: false,
+            riskScore: 50,
+          });
+        }
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = ""; // Reset input
+  }
 
   function handleAddSupplier() {
     if (!form.name.trim() || !form.email.trim()) return;
@@ -84,22 +145,97 @@ export function SuppliersPage() {
               Supplier Directory
             </h2>
             <p className="text-[11px] text-muted-foreground">
-              Registered suppliers and their capabilities
+              {filteredSuppliers.length} of {state.suppliers.length} suppliers
             </p>
           </div>
         </div>
-        <Button
-          size="sm"
-          className="bg-[#00A0E3] text-white text-xs hover:bg-[#0090cc]"
-          onClick={() => setShowAddModal(true)}
-        >
-          <Plus className="mr-1 h-3 w-3" />
-          Add Supplier
-        </Button>
+        <div className="flex items-center gap-2">
+          <label className="relative cursor-pointer">
+            <input
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={handleCSVImport}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              asChild
+            >
+              <span>
+                <Upload className="mr-1 h-3 w-3" />
+                Import CSV
+              </span>
+            </Button>
+          </label>
+          <Button
+            size="sm"
+            className="bg-[#00A0E3] text-white text-xs hover:bg-[#0090cc]"
+            onClick={() => setShowAddModal(true)}
+          >
+            <Plus className="mr-1 h-3 w-3" />
+            Add Supplier
+          </Button>
+        </div>
       </div>
 
+      {/* Search and Filters */}
+      <Card className="border-border">
+        <CardContent className="p-3">
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                className="h-8 pl-8 text-xs"
+                placeholder="Search by name, ID, commodity, or email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+              <Select
+                value={filterStatus}
+                onValueChange={(v) => setFilterStatus(v as typeof filterStatus)}
+              >
+                <SelectTrigger className="h-8 w-28 text-xs">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs">All Status</SelectItem>
+                  <SelectItem value="Approved" className="text-xs">Approved</SelectItem>
+                  <SelectItem value="Pending" className="text-xs">Pending</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={filterRating}
+                onValueChange={(v) => setFilterRating(v as typeof filterRating)}
+              >
+                <SelectTrigger className="h-8 w-24 text-xs">
+                  <SelectValue placeholder="Rating" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs">All Ratings</SelectItem>
+                  <SelectItem value="A" className="text-xs">A</SelectItem>
+                  <SelectItem value="B" className="text-xs">B</SelectItem>
+                  <SelectItem value="C" className="text-xs">C</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-2 gap-3">
-        {state.suppliers.map((sup) => {
+        {filteredSuppliers.length === 0 ? (
+          <div className="col-span-2 text-center py-8">
+            <p className="text-xs text-muted-foreground">
+              No suppliers match your search criteria.
+            </p>
+          </div>
+        ) : null}
+        {filteredSuppliers.map((sup) => {
           const assignedCount = state.rfqSuppliers.filter(
             (rs) => rs.supplierId === sup.id
           ).length;

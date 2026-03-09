@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useCallback, useRef } from "react";
-import type { AppState, Role, RFQ, Quotation, QCS, Message, RFQSupplier, Supplier, Notification } from "./types";
+import type { AppState, Role, RFQ, Quotation, QCS, Message, RFQSupplier, RFQSupplierStatus, Supplier, Notification } from "./types";
 
 const defaultUsers = [
   { id: "USR-001", name: "Max Mueller", role: "engineer" as Role, email: "m.mueller@thyssenkrupp.com" },
@@ -112,6 +112,7 @@ interface StoreContextType {
   addRFQ: (rfq: Omit<RFQ, "id" | "createdAt" | "updatedAt">) => string;
   updateRFQ: (id: string, updates: Partial<RFQ>) => void;
   assignSupplier: (rfqId: string, supplierId: string) => void;
+  updateRFQSupplier: (rfqId: string, supplierId: string, updates: Partial<RFQSupplier>) => void;
   addQuotation: (quotation: Omit<Quotation, "id" | "submittedAt">) => void;
   updateQuotation: (id: string, updates: Partial<Quotation>) => void;
   addQCS: (qcs: Omit<QCS, "id" | "createdAt">) => void;
@@ -179,9 +180,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         rfqId,
         supplierId,
         assignedAt: new Date().toISOString(),
+        status: "RFQ Received",
+        quoted: false,
       };
       return { ...prev, rfqSuppliers: [...prev.rfqSuppliers, assignment] };
     });
+  }, []);
+
+  const updateRFQSupplier = useCallback((rfqId: string, supplierId: string, updates: Partial<RFQSupplier>) => {
+    setState((prev) => ({
+      ...prev,
+      rfqSuppliers: prev.rfqSuppliers.map((rs) =>
+        rs.rfqId === rfqId && rs.supplierId === supplierId
+          ? { ...rs, ...updates }
+          : rs
+      ),
+    }));
   }, []);
 
   const addQuotation = useCallback(
@@ -313,6 +327,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         addRFQ,
         updateRFQ,
         assignSupplier,
+        updateRFQSupplier,
         addQuotation,
         updateQuotation,
         addQCS,
