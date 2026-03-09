@@ -207,21 +207,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const newRFQ: RFQ = { ...rfq, id, createdAt: now, updatedAt: now };
       
       console.log("[v0] Store: Creating new RFQ:", id);
-      console.log("[v0] Store: RFQ data:", newRFQ);
+      console.log("[v0] Store: RFQ data:", JSON.stringify(newRFQ, null, 2));
       
-      // Update local state immediately
-      setState((prev) => ({
-        ...prev,
-        rfqs: [...prev.rfqs, newRFQ],
-      }));
-
-      // Insert into Supabase
+      // Insert into Supabase FIRST, then update local state only on success
       console.log("[v0] Store: Calling insertRFQ to persist to Supabase...");
       insertRFQ(newRFQ).then((success) => {
         if (success) {
           console.log("[v0] Store: RFQ persisted to Supabase successfully:", id);
+          // Only update local state after Supabase insert succeeds
+          setState((prev) => ({
+            ...prev,
+            rfqs: [...prev.rfqs, newRFQ],
+          }));
+          console.log("[v0] Store: Local state updated with new RFQ");
         } else {
           console.error("[v0] Store: FAILED to persist RFQ to Supabase:", id);
+          console.error("[v0] Store: NOT updating local state - data NOT saved!");
         }
       });
 
