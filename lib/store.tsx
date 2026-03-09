@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useRef } from "react";
 import type { AppState, Role, RFQ, Quotation, QCS, Message, RFQSupplier, RFQSupplierStatus, Supplier, Notification } from "./types";
+import { supabase } from "./supabaseClient";
 
 const defaultUsers = [
   { id: "USR-001", name: "Max Mueller", role: "engineer" as Role, email: "m.mueller@thyssenkrupp.com" },
@@ -152,10 +153,40 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     (rfq: Omit<RFQ, "id" | "createdAt" | "updatedAt">) => {
       const id = generateId("RFQ");
       const now = new Date().toISOString();
+      const newRFQ = { ...rfq, id, createdAt: now, updatedAt: now };
+      
+      // Update local state
       setState((prev) => ({
         ...prev,
-        rfqs: [...prev.rfqs, { ...rfq, id, createdAt: now, updatedAt: now }],
+        rfqs: [...prev.rfqs, newRFQ],
       }));
+
+      // Insert into Supabase (async, non-blocking)
+      supabase
+        .from("rfqs")
+        .insert({
+          id: newRFQ.id,
+          project: newRFQ.project,
+          component: newRFQ.component,
+          quantity: newRFQ.quantity,
+          budget: newRFQ.budget,
+          delivery_time: newRFQ.deliveryTime,
+          plant: newRFQ.plant,
+          psp_element: newRFQ.pspElement,
+          technical_contact: newRFQ.technicalContact,
+          on_site_visit_required: newRFQ.onSiteVisitRequired,
+          request_type: newRFQ.requestType,
+          status: newRFQ.status,
+          created_by: newRFQ.createdBy,
+          created_at: newRFQ.createdAt,
+          updated_at: newRFQ.updatedAt,
+        })
+        .then(({ error }) => {
+          if (error) {
+            console.error("[v0] Error inserting RFQ into Supabase:", error.message);
+          }
+        });
+
       return id;
     },
     [generateId]
