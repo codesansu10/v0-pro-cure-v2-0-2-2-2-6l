@@ -165,16 +165,18 @@ export async function fetchSupplierRFQs(supplierId: string): Promise<{ rfq: RFQ;
 }
 
 export async function fetchQuotations(rfqId?: string): Promise<Quotation[]> {
-  let query = supabase.from("quotations").select("*");
-  if (rfqId) {
-    query = query.eq("rfq_id", rfqId);
-  }
-  const { data, error } = await query;
+  // Fetch all quotations - don't filter by rfq_id in query since it may be UUID type
+  const { data, error } = await supabase.from("quotations").select("*");
   if (error) {
     console.error("[Supabase] Error fetching quotations:", error.message);
     return [];
   }
-  return (data || []).map(fromSupabaseQuotation);
+  const quotations = (data || []).map(fromSupabaseQuotation);
+  // Filter in-memory if rfqId provided
+  if (rfqId) {
+    return quotations.filter((q) => q.rfqId === rfqId);
+  }
+  return quotations;
 }
 
 export async function fetchQuotationItems(quotationId: string): Promise<QuotationLineItem[]> {
