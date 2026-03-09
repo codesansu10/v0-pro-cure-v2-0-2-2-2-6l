@@ -39,21 +39,23 @@ function fromSupabaseRFQ(row: Record<string, unknown>): RFQ {
 }
 
 function fromSupabaseSupplier(row: Record<string, unknown>): Supplier {
-  return {
-    id: row.id as string,
-    name: row.name as string,
-    contactPerson: (row.contact_person as string) || "",
+  // Map from Supabase columns: id, name, company, email, contact_name, rating, role, created_at
+  const supplier: Supplier = {
+    id: (row.id as string) || "",
+    name: (row.name as string) || "",
+    contactPerson: (row.contact_name as string) || (row.contact_person as string) || "",
     email: (row.email as string) || "",
-    commodityFocus: (row.commodity_focus as string) || "",
-    status: (row.status as "Approved" | "Pending") || "Pending",
+    commodityFocus: (row.company as string) || (row.commodity_focus as string) || "",
+    status: "Approved" as const,
     rating: (row.rating as "A" | "B" | "C") || "B",
     role: (row.role as Supplier["role"]) || "supplier_a",
-    approved: (row.approved as boolean) || false,
-    capacityConfirmed: (row.capacity_confirmed as boolean) || false,
-    technicalCompliance: (row.technical_compliance as boolean) || false,
-    commercialSpecCompliant: (row.commercial_spec_compliant as boolean) || false,
-    riskScore: (row.risk_score as number) || 50,
+    approved: true,
+    capacityConfirmed: true,
+    technicalCompliance: true,
+    commercialSpecCompliant: true,
+    riskScore: 20,
   };
+  return supplier;
 }
 
 function fromSupabaseRFQSupplier(row: Record<string, unknown>): RFQSupplier {
@@ -108,12 +110,24 @@ export async function fetchRFQs(): Promise<RFQ[]> {
 }
 
 export async function fetchSuppliers(): Promise<Supplier[]> {
+  console.log("[v0] Supabase: Fetching suppliers from 'suppliers' table...");
   const { data, error } = await supabase.from("suppliers").select("*");
+  
+  console.log("[v0] Supabase fetchSuppliers - raw data:", JSON.stringify(data, null, 2));
+  console.log("[v0] Supabase fetchSuppliers - error:", error);
+  
   if (error) {
-    console.error("[Supabase] Error fetching suppliers:", error.message);
+    console.error("[v0] Supabase ERROR fetching suppliers:", error.message, error.details, error.hint);
     return [];
   }
-  return (data || []).map(fromSupabaseSupplier);
+  
+  const suppliers = (data || []).map(fromSupabaseSupplier);
+  console.log("[v0] Supabase: Fetched", suppliers.length, "suppliers:");
+  suppliers.forEach((s, i) => {
+    console.log(`[v0]   Supplier ${i + 1}: id=${s.id}, name=${s.name}, role=${s.role}, email=${s.email}`);
+  });
+  
+  return suppliers;
 }
 
 export async function fetchRFQSuppliers(): Promise<RFQSupplier[]> {
@@ -341,20 +355,27 @@ export async function updateRFQSupplierStatus(
 // ===== SEED FUNCTION (for initial data) =====
 
 export async function seedSuppliers(): Promise<void> {
+  console.log("[v0] Supabase: Seeding suppliers table with all 5 suppliers...");
+  
   const defaultSuppliers = [
-    { id: "SUP-001", name: "Steel Corp GmbH", company: "Steel Corp", rating: "A", role: "supplier_a", status: "Approved" },
-    { id: "SUP-002", name: "MetalWorks AG", company: "Industrial Metals", rating: "A", role: "supplier_b", status: "Approved" },
-    { id: "SUP-003", name: "Precision Parts Ltd", company: "Precision Parts", rating: "A", role: "supplier_c", status: "Approved" },
-    { id: "SUP-004", name: "AlloyTech Industries", company: "Global Steel", rating: "B", role: "supplier_d", status: "Pending" },
-    { id: "SUP-005", name: "EuroForge SA", company: "Euro Components", rating: "A", role: "supplier_e", status: "Approved" },
+    { id: "SUP-001", name: "Supplier A", company: "Steel Corp", email: "suppliera@steelcorp.com", contact_name: "Anna Keller", rating: "A", role: "supplier_a" },
+    { id: "SUP-002", name: "Supplier B", company: "Industrial Metals", email: "supplierb@industrialmetals.com", contact_name: "Markus Weber", rating: "A", role: "supplier_b" },
+    { id: "SUP-003", name: "Supplier C", company: "Precision Parts", email: "supplierc@precisionparts.com", contact_name: "Sophie Lang", rating: "A", role: "supplier_c" },
+    { id: "SUP-004", name: "Supplier D", company: "Global Steel", email: "supplierd@globalsteel.com", contact_name: "Daniel Braun", rating: "B", role: "supplier_d" },
+    { id: "SUP-005", name: "Supplier E", company: "Euro Components", email: "suppliere@eurocomponents.com", contact_name: "Laura Fischer", rating: "A", role: "supplier_e" },
   ];
 
   for (const sup of defaultSuppliers) {
-    const { error } = await supabase.from("suppliers").upsert(sup, { onConflict: "id" });
+    console.log("[v0] Supabase: Upserting supplier:", sup.name, sup.id);
+    const { data, error } = await supabase.from("suppliers").upsert(sup, { onConflict: "id" }).select();
     if (error) {
-      console.error("[Supabase] Error seeding supplier:", sup.name, error.message);
+      console.error("[v0] Supabase ERROR seeding supplier:", sup.name, error.message, error.details, error.hint);
+    } else {
+      console.log("[v0] Supabase: Supplier seeded successfully:", sup.name, data);
     }
   }
+  
+  console.log("[v0] Supabase: Finished seeding suppliers");
 }
 
 // ===== SUPPLIER RESOLUTION =====

@@ -56,8 +56,23 @@ export function SupplierDashboard() {
   // Local state for realtime-updated data
   const [realtimeRFQSuppliers, setRealtimeRFQSuppliers] = useState(state.rfqSuppliers);
   
-  // Get current supplier
+  // Get current supplier with logging
   const supplier = state.suppliers.find((s) => s.role === currentRole);
+  
+  // Log supplier resolution for debugging
+  useEffect(() => {
+    console.log("[v0] SupplierDashboard: Current role:", currentRole);
+    console.log("[v0] SupplierDashboard: Available suppliers:", state.suppliers.length);
+    state.suppliers.forEach((s, i) => {
+      console.log(`[v0]   ${i + 1}. ${s.id} | ${s.name} | role=${s.role}`);
+    });
+    if (supplier) {
+      console.log("[v0] SupplierDashboard: Matched supplier:", supplier.id, supplier.name, supplier.email);
+    } else {
+      console.error("[v0] SupplierDashboard: FAILED to match supplier for role:", currentRole);
+      console.error("[v0] SupplierDashboard: No supplier found with role matching:", currentRole);
+    }
+  }, [currentRole, state.suppliers, supplier]);
   
   // Subscribe to realtime changes on rfq_suppliers for this supplier
   useEffect(() => {
