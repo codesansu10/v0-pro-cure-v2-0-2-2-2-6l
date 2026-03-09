@@ -62,7 +62,7 @@ function fromSupabaseRFQSupplier(row: Record<string, unknown>): RFQSupplier {
   return {
     rfqId: row.rfq_id as string,
     supplierId: row.supplier_id as string,
-    assignedAt: (row.created_at as string) || new Date().toISOString(),
+    assignedAt: new Date().toISOString(), // Not stored in DB
     status: (row.status as RFQSupplierStatus) || "RFQ Received",
     quoted: (row.quoted as boolean) || false,
   };
@@ -99,51 +99,29 @@ function fromSupabaseQuotationItem(row: Record<string, unknown>): QuotationLineI
 // ===== FETCH FUNCTIONS =====
 
 export async function fetchRFQs(): Promise<RFQ[]> {
-  console.log("[v0] Supabase: Fetching RFQs from 'rfqs' table...");
   const { data, error } = await supabase.from("rfqs").select("*").order("created_at", { ascending: false });
-  console.log("[v0] Supabase fetchRFQs - data:", data);
-  console.log("[v0] Supabase fetchRFQs - error:", error);
   if (error) {
-    console.error("[v0] Supabase ERROR fetching RFQs:", error.message, error.details, error.hint);
+    console.error("[Supabase] Error fetching RFQs:", error.message);
     return [];
   }
-  console.log("[v0] Supabase: Fetched", data?.length || 0, "RFQs successfully");
   return (data || []).map(fromSupabaseRFQ);
 }
 
 export async function fetchSuppliers(): Promise<Supplier[]> {
-  console.log("[v0] Supabase: Fetching suppliers from 'suppliers' table...");
   const { data, error } = await supabase.from("suppliers").select("*");
-  
-  console.log("[v0] Supabase fetchSuppliers - raw data:", JSON.stringify(data, null, 2));
-  console.log("[v0] Supabase fetchSuppliers - error:", error);
-  
   if (error) {
-    console.error("[v0] Supabase ERROR fetching suppliers:", error.message, error.details, error.hint);
+    console.error("[Supabase] Error fetching suppliers:", error.message);
     return [];
   }
-  
-  const suppliers = (data || []).map(fromSupabaseSupplier);
-  console.log("[v0] Supabase: Fetched", suppliers.length, "suppliers:");
-  suppliers.forEach((s, i) => {
-    console.log(`[v0]   Supplier ${i + 1}: id=${s.id}, name=${s.name}, role=${s.role}, email=${s.email}`);
-  });
-  
-  return suppliers;
+  return (data || []).map(fromSupabaseSupplier);
 }
 
 export async function fetchRFQSuppliers(): Promise<RFQSupplier[]> {
-  console.log("[v0] Supabase: Fetching rfq_suppliers...");
   const { data, error } = await supabase.from("rfq_suppliers").select("*");
-  
-  console.log("[v0] Supabase fetchRFQSuppliers - data:", data);
-  console.log("[v0] Supabase fetchRFQSuppliers - error:", error);
-  
   if (error) {
-    console.error("[v0] Supabase ERROR fetching RFQ suppliers:", error.message, error.details, error.hint);
+    console.error("[Supabase] Error fetching RFQ suppliers:", error.message);
     return [];
   }
-  console.log("[v0] Supabase: Fetched", data?.length || 0, "rfq_supplier records");
   return (data || []).map(fromSupabaseRFQSupplier);
 }
 
@@ -165,16 +143,18 @@ export async function fetchSupplierRFQs(supplierId: string): Promise<{ rfq: RFQ;
 }
 
 export async function fetchQuotations(rfqId?: string): Promise<Quotation[]> {
-  let query = supabase.from("quotations").select("*");
-  if (rfqId) {
-    query = query.eq("rfq_id", rfqId);
-  }
-  const { data, error } = await query;
+  // Fetch all quotations - don't filter by rfq_id in query since it may be UUID type
+  const { data, error } = await supabase.from("quotations").select("*");
   if (error) {
     console.error("[Supabase] Error fetching quotations:", error.message);
     return [];
   }
-  return (data || []).map(fromSupabaseQuotation);
+  const quotations = (data || []).map(fromSupabaseQuotation);
+  // Filter in-memory if rfqId provided
+  if (rfqId) {
+    return quotations.filter((q) => q.rfqId === rfqId);
+  }
+  return quotations;
 }
 
 export async function fetchQuotationItems(quotationId: string): Promise<QuotationLineItem[]> {
@@ -206,19 +186,11 @@ export async function fetchQuotationsWithItems(rfqId: string): Promise<(Quotatio
 
 export async function insertRFQ(rfq: RFQ): Promise<boolean> {
   const supabaseData = toSupabaseRFQ(rfq);
-  console.log("[v0] Supabase: Inserting RFQ into 'rfqs' table...");
-  console.log("[v0] Supabase insertRFQ - payload:", supabaseData);
-  
-  const { data, error } = await supabase.from("rfqs").insert(supabaseData).select();
-  
-  console.log("[v0] Supabase insertRFQ - response data:", data);
-  console.log("[v0] Supabase insertRFQ - response error:", error);
-  
+  const { error } = await supabase.from("rfqs").insert(supabaseData).select();
   if (error) {
-    console.error("[v0] Supabase ERROR inserting RFQ:", error.message, error.details, error.hint, error.code);
+    console.error("[Supabase] Error inserting RFQ:", error.message);
     return false;
   }
-  console.log("[v0] Supabase: RFQ inserted successfully:", rfq.id);
   return true;
 }
 
@@ -228,27 +200,16 @@ export async function insertRFQSupplier(assignment: RFQSupplier): Promise<boolea
     supplier_id: assignment.supplierId,
     status: assignment.status,
     quoted: assignment.quoted,
-    created_at: assignment.assignedAt,
   };
-  
-  console.log("[v0] Supabase: Inserting into 'rfq_suppliers' table...");
-  console.log("[v0] Supabase insertRFQSupplier - payload:", payload);
-  
-  const { data, error } = await supabase.from("rfq_suppliers").insert(payload).select();
-  
-  console.log("[v0] Supabase insertRFQSupplier - response data:", data);
-  console.log("[v0] Supabase insertRFQSupplier - response error:", error);
-  
+  const { error } = await supabase.from("rfq_suppliers").insert(payload).select();
   if (error) {
-    console.error("[v0] Supabase ERROR inserting RFQ supplier:", error.message, error.details, error.hint, error.code);
+    console.error("[Supabase] Error inserting RFQ supplier:", error.message);
     return false;
   }
-  console.log("[v0] Supabase: RFQ supplier assignment inserted successfully");
   return true;
 }
 
 export async function insertQuotation(quotation: Omit<Quotation, "lineItems">): Promise<string | null> {
-  // Only insert columns that exist in the quotations table: id, rfq_id, supplier_id, notes, created_at
   const payload = {
     id: quotation.id,
     rfq_id: quotation.rfqId,
@@ -256,32 +217,20 @@ export async function insertQuotation(quotation: Omit<Quotation, "lineItems">): 
     notes: quotation.comments || "",
     created_at: quotation.submittedAt,
   };
-  
-  console.log("[v0] Supabase: Inserting into 'quotations' table...");
-  console.log("[v0] Supabase insertQuotation - payload:", payload);
-  
   const { data, error } = await supabase
     .from("quotations")
     .insert(payload)
     .select("id")
     .single();
-  
-  console.log("[v0] Supabase insertQuotation - response data:", data);
-  console.log("[v0] Supabase insertQuotation - response error:", error);
-  
   if (error) {
-    console.error("[v0] Supabase ERROR inserting quotation:", error.message, error.details, error.hint, error.code);
+    console.error("[Supabase] Error inserting quotation:", error.message);
     return null;
   }
-  console.log("[v0] Supabase: Quotation inserted successfully:", data?.id);
   return data?.id || quotation.id;
 }
 
 export async function insertQuotationItems(quotationId: string, items: QuotationLineItem[]): Promise<boolean> {
-  if (items.length === 0) {
-    console.log("[v0] Supabase: No quotation items to insert, skipping");
-    return true;
-  }
+  if (items.length === 0) return true;
   
   const rows = items.map((item) => ({
     id: item.id,
@@ -292,43 +241,26 @@ export async function insertQuotationItems(quotationId: string, items: Quotation
     unit_price: item.unitPrice,
     total_price: item.totalPrice,
   }));
-
-  console.log("[v0] Supabase: Inserting", rows.length, "items into 'quotation_items' table...");
-  console.log("[v0] Supabase insertQuotationItems - payload:", rows);
-
-  const { data, error } = await supabase.from("quotation_items").insert(rows).select();
-  
-  console.log("[v0] Supabase insertQuotationItems - response data:", data);
-  console.log("[v0] Supabase insertQuotationItems - response error:", error);
-  
+  const { error } = await supabase.from("quotation_items").insert(rows).select();
   if (error) {
-    console.error("[v0] Supabase ERROR inserting quotation items:", error.message, error.details, error.hint, error.code);
+    console.error("[Supabase] Error inserting quotation items:", error.message);
     return false;
   }
-  console.log("[v0] Supabase: Quotation items inserted successfully");
   return true;
 }
 
 // ===== UPDATE FUNCTIONS =====
 
 export async function updateRFQStatus(rfqId: string, status: string): Promise<boolean> {
-  console.log("[v0] Supabase: Updating RFQ status in 'rfqs' table...", rfqId, status);
-  
-  // Use rfq_number column (not id) since that's how we store the RFQ ID
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("rfqs")
     .update({ status })
     .eq("rfq_number", rfqId)
     .select();
-    
-  console.log("[v0] Supabase updateRFQStatus - response data:", data);
-  console.log("[v0] Supabase updateRFQStatus - response error:", error);
-  
   if (error) {
-    console.error("[v0] Supabase ERROR updating RFQ status:", error.message, error.details, error.hint, error.code);
+    console.error("[Supabase] Error updating RFQ status:", error.message);
     return false;
   }
-  console.log("[v0] Supabase: RFQ status updated successfully");
   return true;
 }
 
@@ -337,32 +269,22 @@ export async function updateRFQSupplierStatus(
   supplierId: string,
   updates: { status?: RFQSupplierStatus; quoted?: boolean }
 ): Promise<boolean> {
-  console.log("[v0] Supabase: Updating RFQ supplier status in 'rfq_suppliers' table...");
-  console.log("[v0] Supabase updateRFQSupplierStatus - rfqId:", rfqId, "supplierId:", supplierId, "updates:", updates);
-  
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("rfq_suppliers")
     .update(updates)
     .eq("rfq_id", rfqId)
     .eq("supplier_id", supplierId)
     .select();
-    
-  console.log("[v0] Supabase updateRFQSupplierStatus - response data:", data);
-  console.log("[v0] Supabase updateRFQSupplierStatus - response error:", error);
-  
   if (error) {
-    console.error("[v0] Supabase ERROR updating RFQ supplier status:", error.message, error.details, error.hint, error.code);
+    console.error("[Supabase] Error updating RFQ supplier status:", error.message);
     return false;
   }
-  console.log("[v0] Supabase: RFQ supplier status updated successfully");
   return true;
 }
 
 // ===== SEED FUNCTION (for initial data) =====
 
 export async function seedSuppliers(): Promise<void> {
-  console.log("[v0] Supabase: Seeding suppliers table with all 5 suppliers...");
-  
   const defaultSuppliers = [
     { id: "SUP-001", name: "Supplier A", company: "Steel Corp", email: "suppliera@steelcorp.com", contact_name: "Anna Keller", rating: "A", role: "supplier_a" },
     { id: "SUP-002", name: "Supplier B", company: "Industrial Metals", email: "supplierb@industrialmetals.com", contact_name: "Markus Weber", rating: "A", role: "supplier_b" },
@@ -372,16 +294,11 @@ export async function seedSuppliers(): Promise<void> {
   ];
 
   for (const sup of defaultSuppliers) {
-    console.log("[v0] Supabase: Upserting supplier:", sup.name, sup.id);
-    const { data, error } = await supabase.from("suppliers").upsert(sup, { onConflict: "id" }).select();
+    const { error } = await supabase.from("suppliers").upsert(sup, { onConflict: "id" }).select();
     if (error) {
-      console.error("[v0] Supabase ERROR seeding supplier:", sup.name, error.message, error.details, error.hint);
-    } else {
-      console.log("[v0] Supabase: Supplier seeded successfully:", sup.name, data);
+      console.error("[Supabase] Error seeding supplier:", sup.name, error.message);
     }
   }
-  
-  console.log("[v0] Supabase: Finished seeding suppliers");
 }
 
 // ===== SUPPLIER RESOLUTION =====
