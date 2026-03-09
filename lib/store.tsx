@@ -256,18 +256,32 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           : rs
       ),
     }));
+    
+    // Sync to Supabase
+    if (updates.status !== undefined || updates.quoted !== undefined) {
+      updateRFQSupplierStatus(rfqId, supplierId, updates.status, updates.quoted);
+    }
   }, []);
 
   const addQuotation = useCallback(
     (quotation: Omit<Quotation, "id" | "submittedAt">) => {
       const id = generateId("QOT");
+      const now = new Date().toISOString();
+      const newQuotation: Quotation = { ...quotation, id, submittedAt: now };
+      
+      // Update local state
       setState((prev) => ({
         ...prev,
-        quotations: [
-          ...prev.quotations,
-          { ...quotation, id, submittedAt: new Date().toISOString() },
-        ],
+        quotations: [...prev.quotations, newQuotation],
       }));
+
+      // Insert quotation into Supabase
+      insertQuotation(newQuotation);
+      
+      // Insert line items if present
+      if (newQuotation.lineItems && newQuotation.lineItems.length > 0) {
+        insertQuotationItems(id, newQuotation.lineItems);
+      }
     },
     [generateId]
   );
