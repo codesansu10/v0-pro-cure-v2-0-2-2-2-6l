@@ -10,3 +10,35 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// TEMPORARY DEBUG: Test Supabase connection by inserting a row
+export async function debugTestSupabaseInsert() {
+  console.log("[v0] Starting Supabase debug test insert...");
+  
+  const testData = {
+    rfq_number: "RFQ-TEST-001",
+    project: "Test Project",
+    component: "Test Component",
+    quantity: 10,
+    budget: 1000,
+    status: "RFQ Sent",
+  };
+  
+  console.log("[v0] Inserting test data:", testData);
+  
+  const { data, error } = await supabase
+    .from("rfqs")
+    .insert(testData)
+    .select();
+  
+  console.log("[v0] Supabase response - data:", data);
+  console.log("[v0] Supabase response - error:", error);
+  
+  if (error) {
+    console.error("[v0] Supabase insert failed:", error.message, error.details, error.hint);
+  } else {
+    console.log("[v0] Supabase insert succeeded! Inserted row:", data);
+  }
+  
+  return { data, error };
+}
