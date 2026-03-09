@@ -248,7 +248,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const now = new Date().toISOString();
       const newRFQ: RFQ = { ...rfq, id, createdAt: now, updatedAt: now };
       
-      // Insert into Supabase - realtime will update local state
+      // Update local state immediately for optimistic UI
+      setState((prev) => ({
+        ...prev,
+        rfqs: [...prev.rfqs, newRFQ],
+      }));
+      
+      // Persist to Supabase
       insertRFQ(newRFQ).then((success) => {
         if (!success) {
           console.error("[Store] Failed to persist RFQ:", id);
