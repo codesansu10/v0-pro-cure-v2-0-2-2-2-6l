@@ -4,42 +4,35 @@ import { supabase } from "./supabaseClient";
 import type { RFQ, RFQSupplier, Quotation, QuotationLineItem, Supplier, RFQSupplierStatus } from "./types";
 
 // Map between local camelCase and Supabase snake_case
+// Only include columns that exist in the Supabase "rfqs" table:
+// rfq_number, project, component, quantity, budget, status
 function toSupabaseRFQ(rfq: RFQ) {
   return {
-    id: rfq.id,
     rfq_number: rfq.id,
     project: rfq.project,
     component: rfq.component,
     quantity: rfq.quantity,
     budget: rfq.budget,
-    delivery_time: rfq.deliveryTime,
-    plant: rfq.plant,
-    psp_element: rfq.pspElement,
-    technical_contact: rfq.technicalContact,
-    on_site_visit_required: rfq.onSiteVisitRequired,
-    request_type: rfq.requestType,
     status: rfq.status,
-    created_by: rfq.createdBy,
-    created_at: rfq.createdAt,
-    updated_at: rfq.updatedAt,
   };
 }
 
 function fromSupabaseRFQ(row: Record<string, unknown>): RFQ {
+  // Map from Supabase columns: rfq_number, project, component, quantity, budget, status
   return {
-    id: row.id as string,
-    project: row.project as string,
-    component: row.component as string,
-    quantity: row.quantity as number,
-    budget: row.budget as number,
-    deliveryTime: (row.delivery_time as number) || 4,
-    plant: (row.plant as string) || "",
-    pspElement: (row.psp_element as string) || "",
-    technicalContact: (row.technical_contact as string) || "",
-    onSiteVisitRequired: (row.on_site_visit_required as boolean) || false,
-    requestType: (row.request_type as RFQ["requestType"]) || "Manufacturing",
+    id: (row.rfq_number as string) || (row.id as string) || "",
+    project: (row.project as string) || "",
+    component: (row.component as string) || "",
+    quantity: (row.quantity as number) || 0,
+    budget: (row.budget as number) || 0,
+    deliveryTime: 4, // default since not stored in DB
+    plant: "",
+    pspElement: "",
+    technicalContact: "",
+    onSiteVisitRequired: false,
+    requestType: "Manufacturing" as RFQ["requestType"],
     status: (row.status as RFQ["status"]) || "Draft",
-    createdBy: (row.created_by as string) || "",
+    createdBy: "",
     createdAt: (row.created_at as string) || new Date().toISOString(),
     updatedAt: (row.updated_at as string) || new Date().toISOString(),
   };
@@ -301,10 +294,11 @@ export async function insertQuotationItems(quotationId: string, items: Quotation
 export async function updateRFQStatus(rfqId: string, status: string): Promise<boolean> {
   console.log("[v0] Supabase: Updating RFQ status in 'rfqs' table...", rfqId, status);
   
+  // Use rfq_number column (not id) since that's how we store the RFQ ID
   const { data, error } = await supabase
     .from("rfqs")
-    .update({ status, updated_at: new Date().toISOString() })
-    .eq("id", rfqId)
+    .update({ status })
+    .eq("rfq_number", rfqId)
     .select();
     
   console.log("[v0] Supabase updateRFQStatus - response data:", data);
