@@ -9,14 +9,14 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-// Singleton pattern to prevent multiple GoTrueClient instances
-let supabaseInstance: SupabaseClient | null = null;
+// Use global to persist across hot module reloads in development
+const globalForSupabase = globalThis as unknown as {
+  supabase: SupabaseClient | undefined;
+};
 
-function getSupabaseClient(): SupabaseClient {
-  if (!supabaseInstance) {
-    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
-  }
-  return supabaseInstance;
+export const supabase =
+  globalForSupabase.supabase ?? createClient(supabaseUrl, supabaseAnonKey);
+
+if (process.env.NODE_ENV !== "production") {
+  globalForSupabase.supabase = supabase;
 }
-
-export const supabase = getSupabaseClient();
