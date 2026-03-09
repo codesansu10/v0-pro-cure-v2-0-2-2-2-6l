@@ -31,8 +31,9 @@ import {
 } from "@/components/ui/dialog";
 import { StatusBadge } from "./status-badge";
 import { ChatPanel } from "./chat-panel";
-import { FileText, Send, MessageSquare, Eye } from "lucide-react";
+import { FileText, Send, MessageSquare, Eye, Plus, Trash2, Upload } from "lucide-react";
 import { TkLogo } from "@/components/tk-logo";
+import type { QuotationLineItem } from "@/lib/types";
 
 export function SupplierDashboard() {
   const { state, currentRole, addQuotation, updateRFQ, addNotification } = useStore();
@@ -40,14 +41,50 @@ export function SupplierDashboard() {
   const [chatRFQId, setChatRFQId] = useState<string | null>(null);
   const [viewRFQ, setViewRFQ] = useState<string | null>(null);
 
-  const [quoteForm, setQuoteForm] = useState({
+  const emptyLineItem = (): QuotationLineItem => ({
+    id: `LI-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    itemName: "",
+    description: "",
+    quantity: 1,
+    unitPrice: 0,
     totalPrice: 0,
+  });
+
+  const [lineItems, setLineItems] = useState<QuotationLineItem[]>([emptyLineItem()]);
+  const [quotationPdf, setQuotationPdf] = useState<File | null>(null);
+  const [supportingDocs, setSupportingDocs] = useState<File | null>(null);
+
+  const [quoteForm, setQuoteForm] = useState({
     bonusMalus: 0,
     deliveryTime: 4,
     paymentTerms: "Net 30",
     incoterms: "EXW",
     comments: "",
   });
+
+  const calculatedTotalPrice = lineItems.reduce((sum, item) => sum + item.totalPrice, 0);
+
+  function handleLineItemChange(index: number, field: keyof QuotationLineItem, value: string | number) {
+    const updated = [...lineItems];
+    if (field === "quantity" || field === "unitPrice") {
+      const numVal = typeof value === "string" ? parseFloat(value) || 0 : value;
+      updated[index] = { ...updated[index], [field]: numVal };
+      updated[index].totalPrice = updated[index].quantity * updated[index].unitPrice;
+    } else {
+      updated[index] = { ...updated[index], [field]: value };
+    }
+    setLineItems(updated);
+  }
+
+  function addLineItem() {
+    setLineItems([...lineItems, emptyLineItem()]);
+  }
+
+  function removeLineItem(index: number) {
+    if (lineItems.length > 1) {
+      setLineItems(lineItems.filter((_, i) => i !== index));
+    }
+  }
 
   const supplier = state.suppliers.find((s) => s.role === currentRole);
   if (!supplier) return null;
@@ -66,6 +103,10 @@ export function SupplierDashboard() {
     addQuotation({
       rfqId,
       supplierId: supplier!.id,
+      totalPrice: calculatedTotalPrice,
+      lineItems: lineItems.filter(li => li.itemName.trim() !== ""),
+      quotationPdfUrl: quotationPdf ? URL.createObjectURL(quotationPdf) : undefined,
+      supportingDocsUrl: supportingDocs ? URL.createObjectURL(supportingDocs) : undefined,
       ...quoteForm,
     });
     updateRFQ(rfqId, { status: "Quote Received" });
@@ -74,12 +115,14 @@ export function SupplierDashboard() {
       role: "procurement",
       rfqId,
       title: `Quote Received from ${supplier!.name}`,
-      message: `${supplier!.name} submitted a quotation of ${quoteForm.totalPrice.toLocaleString("de-DE")} EUR for ${rfq?.project || "Unknown"} - ${rfq?.component || "Unknown"}.`,
+      message: `${supplier!.name} submitted a quotation of ${calculatedTotalPrice.toLocaleString("de-DE")} EUR for ${rfq?.project || "Unknown"} - ${rfq?.component || "Unknown"}.`,
       type: "quote",
     });
     setQuoteDialog(null);
+    setLineItems([emptyLineItem()]);
+    setQuotationPdf(null);
+    setSupportingDocs(null);
     setQuoteForm({
-      totalPrice: 0,
       bonusMalus: 0,
       deliveryTime: 4,
       paymentTerms: "Net 30",
@@ -204,7 +247,7 @@ export function SupplierDashboard() {
                         {rfq.budget.toLocaleString("de-DE")} EUR
                       </TableCell>
                       <TableCell>
-                        <StatusBadge status={rfq.status} />
+                        <StatusBadge status={rfq.status} supplierView />
                       </TableCell>
                       <TableCell className="text-xs">
                         {hasQuoted ? (
@@ -313,104 +356,224 @@ export function SupplierDashboard() {
         open={!!quoteDialog}
         onOpenChange={() => setQuoteDialog(null)}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-sm font-semibold">
               Submit Quotation — {quoteDialog}
             </DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs">Total Price (EUR)</Label>
-              <Input
-                className="h-8 text-xs"
-                type="number"
-                value={quoteForm.totalPrice || ""}
-                onChange={(e) =>
-                  setQuoteForm({
-                    ...quoteForm,
-                    totalPrice: parseFloat(e.target.value) || 0,
-                  })
-                }
-              />
+          <div className="flex flex-col gap-4">
+            {/* Line Items Section */}
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold">Price Positions</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-6 gap-1 px-2 text-[10px]"
+                  onClick={addLineItem}
+                >
+                  <Plus className="h-3 w-3" />
+                  Add Position
+                </Button>
+              </div>
+              <div className="border border-border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="text-[10px] font-semibold uppercase h-8 w-36">Item Name</TableHead>
+                      <TableHead className="text-[10px] font-semibold uppercase h-8">Description</TableHead>
+                      <TableHead className="text-[10px] font-semibold uppercase h-8 w-20">Qty</TableHead>
+                      <TableHead className="text-[10px] font-semibold uppercase h-8 w-28">Unit Price</TableHead>
+                      <TableHead className="text-[10px] font-semibold uppercase h-8 w-28">Total</TableHead>
+                      <TableHead className="text-[10px] font-semibold uppercase h-8 w-10"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {lineItems.map((item, index) => (
+                      <TableRow key={item.id} className="hover:bg-muted/50">
+                        <TableCell className="p-1">
+                          <Input
+                            className="h-7 text-xs"
+                            placeholder="Item name"
+                            value={item.itemName}
+                            onChange={(e) => handleLineItemChange(index, "itemName", e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell className="p-1">
+                          <Input
+                            className="h-7 text-xs"
+                            placeholder="Description"
+                            value={item.description}
+                            onChange={(e) => handleLineItemChange(index, "description", e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell className="p-1">
+                          <Input
+                            className="h-7 text-xs"
+                            type="number"
+                            min="1"
+                            value={item.quantity || ""}
+                            onChange={(e) => handleLineItemChange(index, "quantity", e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell className="p-1">
+                          <Input
+                            className="h-7 text-xs"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.unitPrice || ""}
+                            onChange={(e) => handleLineItemChange(index, "unitPrice", e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell className="p-1 text-xs font-medium">
+                          {item.totalPrice.toLocaleString("de-DE")} EUR
+                        </TableCell>
+                        <TableCell className="p-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => removeLineItem(index)}
+                            disabled={lineItems.length === 1}
+                          >
+                            <Trash2 className="h-3 w-3 text-muted-foreground" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex justify-end">
+                <div className="bg-muted/50 px-3 py-2 rounded text-xs">
+                  <span className="text-muted-foreground">Total Price: </span>
+                  <span className="font-bold">{calculatedTotalPrice.toLocaleString("de-DE")} EUR</span>
+                </div>
+              </div>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs">Bonus / Malus (EUR)</Label>
-              <Input
-                className="h-8 text-xs"
-                type="number"
-                value={quoteForm.bonusMalus || ""}
-                onChange={(e) =>
-                  setQuoteForm({
-                    ...quoteForm,
-                    bonusMalus: parseFloat(e.target.value) || 0,
-                  })
-                }
-              />
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs">Bonus / Malus (EUR)</Label>
+                <Input
+                  className="h-8 text-xs"
+                  type="number"
+                  value={quoteForm.bonusMalus || ""}
+                  onChange={(e) =>
+                    setQuoteForm({
+                      ...quoteForm,
+                      bonusMalus: parseFloat(e.target.value) || 0,
+                    })
+                  }
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs">Delivery Time (weeks)</Label>
+                <Input
+                  className="h-8 text-xs"
+                  type="number"
+                  value={quoteForm.deliveryTime || ""}
+                  onChange={(e) =>
+                    setQuoteForm({
+                      ...quoteForm,
+                      deliveryTime: parseInt(e.target.value) || 0,
+                    })
+                  }
+                />
+              </div>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs">Delivery Time (weeks)</Label>
-              <Input
-                className="h-8 text-xs"
-                type="number"
-                value={quoteForm.deliveryTime || ""}
-                onChange={(e) =>
-                  setQuoteForm({
-                    ...quoteForm,
-                    deliveryTime: parseInt(e.target.value) || 0,
-                  })
-                }
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs">Payment Terms</Label>
+                <Select
+                  value={quoteForm.paymentTerms}
+                  onValueChange={(v) =>
+                    setQuoteForm({ ...quoteForm, paymentTerms: v })
+                  }
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Net 30" className="text-xs">
+                      Net 30
+                    </SelectItem>
+                    <SelectItem value="Net 60" className="text-xs">
+                      Net 60
+                    </SelectItem>
+                    <SelectItem value="Net 90" className="text-xs">
+                      Net 90
+                    </SelectItem>
+                    <SelectItem value="Prepaid" className="text-xs">
+                      Prepaid
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs">Incoterms</Label>
+                <Select
+                  value={quoteForm.incoterms}
+                  onValueChange={(v) =>
+                    setQuoteForm({ ...quoteForm, incoterms: v })
+                  }
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["EXW", "FCA", "CPT", "CIP", "DAP", "DPU", "DDP", "FOB", "CIF"].map(
+                      (term) => (
+                        <SelectItem key={term} value={term} className="text-xs">
+                          {term}
+                        </SelectItem>
+                      )
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs">Payment Terms</Label>
-              <Select
-                value={quoteForm.paymentTerms}
-                onValueChange={(v) =>
-                  setQuoteForm({ ...quoteForm, paymentTerms: v })
-                }
-              >
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Net 30" className="text-xs">
-                    Net 30
-                  </SelectItem>
-                  <SelectItem value="Net 60" className="text-xs">
-                    Net 60
-                  </SelectItem>
-                  <SelectItem value="Net 90" className="text-xs">
-                    Net 90
-                  </SelectItem>
-                  <SelectItem value="Prepaid" className="text-xs">
-                    Prepaid
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs">Incoterms</Label>
-              <Select
-                value={quoteForm.incoterms}
-                onValueChange={(v) =>
-                  setQuoteForm({ ...quoteForm, incoterms: v })
-                }
-              >
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {["EXW", "FCA", "CPT", "CIP", "DAP", "DPU", "DDP", "FOB", "CIF"].map(
-                    (term) => (
-                      <SelectItem key={term} value={term} className="text-xs">
-                        {term}
-                      </SelectItem>
-                    )
+
+            {/* File Upload Section */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs">Upload Quotation PDF</Label>
+                <div className="relative">
+                  <Input
+                    type="file"
+                    accept=".pdf"
+                    className="h-8 text-xs file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:bg-muted file:text-foreground"
+                    onChange={(e) => setQuotationPdf(e.target.files?.[0] || null)}
+                  />
+                  {quotationPdf && (
+                    <p className="text-[10px] text-emerald-600 mt-1">
+                      {quotationPdf.name}
+                    </p>
                   )}
-                </SelectContent>
-              </Select>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs">Supporting Documents</Label>
+                <div className="relative">
+                  <Input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx"
+                    className="h-8 text-xs file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:bg-muted file:text-foreground"
+                    onChange={(e) => setSupportingDocs(e.target.files?.[0] || null)}
+                  />
+                  {supportingDocs && (
+                    <p className="text-[10px] text-emerald-600 mt-1">
+                      {supportingDocs.name}
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
+
             <div className="flex flex-col gap-1.5">
               <Label className="text-xs">Comments</Label>
               <Textarea
@@ -436,7 +599,7 @@ export function SupplierDashboard() {
               size="sm"
               className="bg-[#00A0E3] text-white text-xs hover:bg-[#0090cc]"
               onClick={() => quoteDialog && handleSubmitQuotation(quoteDialog)}
-              disabled={quoteForm.totalPrice <= 0}
+              disabled={calculatedTotalPrice <= 0}
             >
               Submit Quotation
             </Button>

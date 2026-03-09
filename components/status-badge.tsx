@@ -14,10 +14,23 @@ const statusColors: Record<RFQStatus, string> = {
   Closed: "bg-zinc-700",
 };
 
-export function StatusBadge({ status }: { status: RFQStatus }) {
+// Supplier-friendly status labels
+const supplierStatusLabels: Record<RFQStatus, string> = {
+  Draft: "RFQ Open",
+  Submitted: "RFQ Open",
+  "Under Review": "RFQ Open",
+  "Sent to Supplier": "Quotation Pending",
+  "Quote Received": "Quotation Submitted",
+  "In Negotiation": "Quotation Received",
+  "Final Decision": "Quotation Received",
+  Closed: "RFQ Closed",
+};
+
+export function StatusBadge({ status, supplierView = false }: { status: RFQStatus; supplierView?: boolean }) {
+  const displayStatus = supplierView ? supplierStatusLabels[status] : status;
   return (
     <Badge className={`${statusColors[status]} text-white text-[10px] border-0`}>
-      {status}
+      {displayStatus}
     </Badge>
   );
 }

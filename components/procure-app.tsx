@@ -12,6 +12,7 @@ import { NegotiationPage } from "./negotiation-page";
 import { SuppliersPage } from "./suppliers-page";
 import { AdminPage } from "./admin-page";
 import { RFQListPage } from "./rfq-list-page";
+import { QuotationArchive } from "./quotation-archive";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 function DashboardContent() {
@@ -49,6 +50,8 @@ function PageContent() {
       return <QCSView />;
     case "negotiation":
       return <NegotiationPage />;
+    case "archive":
+      return <QuotationArchive />;
     case "admin":
       return <AdminPage />;
     default:

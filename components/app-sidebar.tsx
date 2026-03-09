@@ -9,6 +9,7 @@ import {
   BarChart3,
   MessageSquare,
   Settings,
+  Archive,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +19,7 @@ const navItems = [
   { id: "suppliers", label: "Suppliers", icon: Truck },
   { id: "qcs", label: "QCS", icon: BarChart3 },
   { id: "negotiation", label: "Negotiation", icon: MessageSquare },
+  { id: "archive", label: "Quotation Archive", icon: Archive },
   { id: "admin", label: "Admin", icon: Settings },
 ];
 

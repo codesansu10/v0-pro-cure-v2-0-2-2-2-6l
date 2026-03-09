@@ -59,6 +59,15 @@ export interface RFQSupplier {
   assignedAt: string;
 }
 
+export interface QuotationLineItem {
+  id: string;
+  itemName: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+}
+
 export interface Quotation {
   id: string;
   rfqId: string;
@@ -70,6 +79,9 @@ export interface Quotation {
   incoterms: string;
   comments: string;
   submittedAt: string;
+  lineItems?: QuotationLineItem[];
+  quotationPdfUrl?: string;
+  supportingDocsUrl?: string;
   negotiationRound1?: number;
   negotiationRound2?: number;
   finalAwardValue?: number;

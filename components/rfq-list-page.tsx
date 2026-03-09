@@ -21,7 +21,9 @@ import {
   MessageSquare,
   Edit,
   Eye,
+  BarChart3,
 } from "lucide-react";
+import { PriceComparison } from "./price-comparison";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +38,7 @@ export function RFQListPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [chatRFQId, setChatRFQId] = useState<string | null>(null);
   const [viewRFQ, setViewRFQ] = useState<string | null>(null);
+  const [compareRFQId, setCompareRFQId] = useState<string | null>(null);
 
   const canCreate =
     currentRole === "engineer" || currentRole === "procurement";
@@ -203,6 +206,23 @@ export function RFQListPage() {
                         >
                           <MessageSquare className="h-3 w-3" />
                         </Button>
+                        {/* Price Comparison button - only for procurement when quotes received */}
+                        {currentRole === "procurement" && 
+                          (rfq.status === "Quote Received" || rfq.status === "In Negotiation" || rfq.status === "Final Decision") && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 gap-1 px-2 text-[10px]"
+                              onClick={() =>
+                                setCompareRFQId(
+                                  compareRFQId === rfq.id ? null : rfq.id
+                                )
+                              }
+                            >
+                              <BarChart3 className="h-3 w-3" />
+                              Compare
+                            </Button>
+                          )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -212,6 +232,9 @@ export function RFQListPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Price Comparison Panel */}
+      {compareRFQId && <PriceComparison rfqId={compareRFQId} />}
 
       {chatRFQId && <ChatPanel rfqId={chatRFQId} />}
 
