@@ -62,7 +62,7 @@ function fromSupabaseRFQSupplier(row: Record<string, unknown>): RFQSupplier {
   return {
     rfqId: row.rfq_id as string,
     supplierId: row.supplier_id as string,
-    assignedAt: (row.created_at as string) || new Date().toISOString(),
+    assignedAt: new Date().toISOString(), // Not stored in DB
     status: (row.status as RFQSupplierStatus) || "RFQ Received",
     quoted: (row.quoted as boolean) || false,
   };
@@ -223,12 +223,12 @@ export async function insertRFQ(rfq: RFQ): Promise<boolean> {
 }
 
 export async function insertRFQSupplier(assignment: RFQSupplier): Promise<boolean> {
+  // Only include columns that exist in rfq_suppliers table: rfq_id, supplier_id, status, quoted
   const payload = {
     rfq_id: assignment.rfqId,
     supplier_id: assignment.supplierId,
     status: assignment.status,
     quoted: assignment.quoted,
-    created_at: assignment.assignedAt,
   };
   
   console.log("[v0] Supabase: Inserting into 'rfq_suppliers' table...");
