@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
 import { useStore } from "@/lib/store";
-import { debugTestSupabaseInsert } from "@/lib/supabaseClient";
 import { Topbar } from "./topbar";
 import { AppSidebar } from "./app-sidebar";
 import { EngineerDashboard } from "./engineer-dashboard";
@@ -64,11 +62,6 @@ function PageContent() {
 export function ProcureApp() {
   const { currentRole } = useStore();
   const isProcurement = currentRole === "procurement";
-
-  // TEMPORARY DEBUG: Test Supabase connection on mount
-  useEffect(() => {
-    debugTestSupabaseInsert();
-  }, []);
 
   return (
     <div className="flex h-screen flex-col bg-background">
