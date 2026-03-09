@@ -29,10 +29,10 @@ const defaultUsers = [
 const defaultSuppliers = [
   {
     id: "SUP-001",
-    name: "Steel Corp GmbH",
-    contactPerson: "Hans Becker",
-    email: "contact@steelcorp.de",
-    commodityFocus: "Steel Plates, Structural Steel",
+    name: "Supplier A",
+    contactPerson: "Anna Keller",
+    email: "suppliera@steelcorp.com",
+    commodityFocus: "Steel Corp",
     status: "Approved" as const,
     rating: "A" as const,
     role: "supplier_a" as const,
@@ -44,25 +44,25 @@ const defaultSuppliers = [
   },
   {
     id: "SUP-002",
-    name: "MetalWorks AG",
-    contactPerson: "Sabine Richter",
-    email: "info@metalworks.de",
-    commodityFocus: "Machined Components, CNC Parts",
+    name: "Supplier B",
+    contactPerson: "Markus Weber",
+    email: "supplierb@industrialmetals.com",
+    commodityFocus: "Industrial Metals",
     status: "Approved" as const,
-    rating: "B" as const,
+    rating: "A" as const,
     role: "supplier_b" as const,
     approved: true,
     capacityConfirmed: true,
-    technicalCompliance: false,
+    technicalCompliance: true,
     commercialSpecCompliant: true,
-    riskScore: 28,
+    riskScore: 15,
   },
   {
     id: "SUP-003",
-    name: "Precision Parts Ltd",
-    contactPerson: "James Wilson",
-    email: "sales@precisionparts.co.uk",
-    commodityFocus: "Precision Bearings, Fasteners",
+    name: "Supplier C",
+    contactPerson: "Sophie Lang",
+    email: "supplierc@precisionparts.com",
+    commodityFocus: "Precision Parts",
     status: "Approved" as const,
     rating: "A" as const,
     role: "supplier_c" as const,
@@ -70,37 +70,37 @@ const defaultSuppliers = [
     capacityConfirmed: true,
     technicalCompliance: true,
     commercialSpecCompliant: true,
-    riskScore: 8,
+    riskScore: 10,
   },
   {
     id: "SUP-004",
-    name: "AlloyTech Industries",
-    contactPerson: "Maria Garcia",
-    email: "procurement@alloytech.com",
-    commodityFocus: "Aluminum Alloys, Titanium Components",
-    status: "Pending" as const,
+    name: "Supplier D",
+    contactPerson: "Daniel Braun",
+    email: "supplierd@globalsteel.com",
+    commodityFocus: "Global Steel",
+    status: "Approved" as const,
     rating: "B" as const,
     role: "supplier_d" as const,
-    approved: false,
+    approved: true,
     capacityConfirmed: true,
     technicalCompliance: true,
-    commercialSpecCompliant: false,
-    riskScore: 35,
+    commercialSpecCompliant: true,
+    riskScore: 25,
   },
   {
     id: "SUP-005",
-    name: "EuroForge SA",
-    contactPerson: "Pierre Dubois",
-    email: "contact@euroforge.eu",
-    commodityFocus: "Forged Parts, Heavy Machinery Components",
+    name: "Supplier E",
+    contactPerson: "Laura Fischer",
+    email: "suppliere@eurocomponents.com",
+    commodityFocus: "Euro Components",
     status: "Approved" as const,
-    rating: "C" as const,
+    rating: "A" as const,
     role: "supplier_e" as const,
     approved: true,
-    capacityConfirmed: false,
+    capacityConfirmed: true,
     technicalCompliance: true,
     commercialSpecCompliant: true,
-    riskScore: 42,
+    riskScore: 18,
   },
 ];
 
@@ -166,6 +166,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
         console.log("[v0] Store: Fetched RFQs:", rfqs.length);
         console.log("[v0] Store: Fetched suppliers:", suppliers.length);
+        
+        // Log each supplier for debugging
+        if (suppliers.length > 0) {
+          console.log("[v0] Store: Suppliers loaded from Supabase:");
+          suppliers.forEach((s, i) => {
+            console.log(`[v0]   ${i + 1}. ${s.id} | ${s.name} | role=${s.role} | email=${s.email}`);
+          });
+        } else {
+          console.log("[v0] Store: No suppliers from Supabase, using fallback defaultSuppliers");
+        }
+        
         console.log("[v0] Store: Fetched rfqSuppliers:", rfqSuppliers.length);
 
         // Load quotations with line items for all RFQs
