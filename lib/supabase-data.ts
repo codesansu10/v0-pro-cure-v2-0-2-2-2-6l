@@ -62,22 +62,24 @@ function fromSupabaseRFQSupplier(row: Record<string, unknown>): RFQSupplier {
   return {
     rfqId: row.rfq_id as string,
     supplierId: row.supplier_id as string,
-    assignedAt: (row.assigned_at as string) || new Date().toISOString(),
+    assignedAt: (row.created_at as string) || new Date().toISOString(),
     status: (row.status as RFQSupplierStatus) || "RFQ Received",
     quoted: (row.quoted as boolean) || false,
   };
 }
 
 function fromSupabaseQuotation(row: Record<string, unknown>): Quotation {
+  // Map from Supabase columns: id, rfq_id, supplier_id, notes, created_at
+  // Other fields use defaults since they're not stored in DB
   return {
     id: row.id as string,
     rfqId: row.rfq_id as string,
     supplierId: row.supplier_id as string,
-    totalPrice: (row.total_price as number) || 0,
-    bonusMalus: (row.bonus_malus as number) || 0,
-    deliveryTime: (row.delivery_time as number) || 4,
-    paymentTerms: (row.payment_terms as string) || "Net 30",
-    incoterms: (row.incoterms as string) || "EXW",
+    totalPrice: 0, // Calculated from line items
+    bonusMalus: 0,
+    deliveryTime: 4,
+    paymentTerms: "Net 30",
+    incoterms: "EXW",
     comments: (row.notes as string) || "",
     submittedAt: (row.created_at as string) || new Date().toISOString(),
   };
@@ -131,11 +133,17 @@ export async function fetchSuppliers(): Promise<Supplier[]> {
 }
 
 export async function fetchRFQSuppliers(): Promise<RFQSupplier[]> {
+  console.log("[v0] Supabase: Fetching rfq_suppliers...");
   const { data, error } = await supabase.from("rfq_suppliers").select("*");
+  
+  console.log("[v0] Supabase fetchRFQSuppliers - data:", data);
+  console.log("[v0] Supabase fetchRFQSuppliers - error:", error);
+  
   if (error) {
-    console.error("[Supabase] Error fetching RFQ suppliers:", error.message);
+    console.error("[v0] Supabase ERROR fetching RFQ suppliers:", error.message, error.details, error.hint);
     return [];
   }
+  console.log("[v0] Supabase: Fetched", data?.length || 0, "rfq_supplier records");
   return (data || []).map(fromSupabaseRFQSupplier);
 }
 
@@ -186,7 +194,9 @@ export async function fetchQuotationsWithItems(rfqId: string): Promise<(Quotatio
   const result = await Promise.all(
     quotations.map(async (q) => {
       const lineItems = await fetchQuotationItems(q.id);
-      return { ...q, lineItems };
+      // Calculate totalPrice from line items since it's not stored in quotations table
+      const totalPrice = lineItems.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
+      return { ...q, totalPrice, lineItems };
     })
   );
   return result;
@@ -218,7 +228,7 @@ export async function insertRFQSupplier(assignment: RFQSupplier): Promise<boolea
     supplier_id: assignment.supplierId,
     status: assignment.status,
     quoted: assignment.quoted,
-    assigned_at: assignment.assignedAt,
+    created_at: assignment.assignedAt,
   };
   
   console.log("[v0] Supabase: Inserting into 'rfq_suppliers' table...");
@@ -238,16 +248,12 @@ export async function insertRFQSupplier(assignment: RFQSupplier): Promise<boolea
 }
 
 export async function insertQuotation(quotation: Omit<Quotation, "lineItems">): Promise<string | null> {
+  // Only insert columns that exist in the quotations table: id, rfq_id, supplier_id, notes, created_at
   const payload = {
     id: quotation.id,
     rfq_id: quotation.rfqId,
     supplier_id: quotation.supplierId,
-    total_price: quotation.totalPrice,
-    bonus_malus: quotation.bonusMalus,
-    delivery_time: quotation.deliveryTime,
-    payment_terms: quotation.paymentTerms,
-    incoterms: quotation.incoterms,
-    notes: quotation.comments,
+    notes: quotation.comments || "",
     created_at: quotation.submittedAt,
   };
   
