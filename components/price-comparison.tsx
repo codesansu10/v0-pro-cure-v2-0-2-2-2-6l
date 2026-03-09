@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useStore } from "@/lib/store";
+import { supabase } from "@/lib/supabaseClient";
+import { fetchQuotationsWithItems, fetchRFQSuppliers } from "@/lib/supabase-data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,11 +35,106 @@ interface PositionAward {
 }
 
 export function PriceComparison({ rfqId }: PriceComparisonProps) {
-  const { state, updateQuotation } = useStore();
+  const { state } = useStore();
   const [positionAwards, setPositionAwards] = useState<PositionAward[]>([]);
+  
+  // Local realtime state for quotations and rfq_suppliers
+  const [realtimeQuotations, setRealtimeQuotations] = useState(
+    state.quotations.filter((q) => q.rfqId === rfqId)
+  );
+  const [realtimeRFQSuppliers, setRealtimeRFQSuppliers] = useState(
+    state.rfqSuppliers.filter((rs) => rs.rfqId === rfqId)
+  );
+
+  // Subscribe to realtime changes
+  useEffect(() => {
+    // Sync with store state initially
+    setRealtimeQuotations(state.quotations.filter((q) => q.rfqId === rfqId));
+    setRealtimeRFQSuppliers(state.rfqSuppliers.filter((rs) => rs.rfqId === rfqId));
+
+    // Helper to refresh quotations for this RFQ
+    async function refreshQuotations() {
+      const updated = await fetchQuotationsWithItems(rfqId);
+      setRealtimeQuotations(updated);
+    }
+
+    // Helper to refresh rfq_suppliers for this RFQ
+    async function refreshRFQSuppliers() {
+      const allAssignments = await fetchRFQSuppliers();
+      setRealtimeRFQSuppliers(allAssignments.filter((rs) => rs.rfqId === rfqId));
+    }
+
+    // Channel for quotations
+    const quotationsChannel = supabase
+      .channel(`quotations_${rfqId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "quotations",
+          filter: `rfq_id=eq.${rfqId}`,
+        },
+        () => {
+          refreshQuotations();
+        }
+      )
+      .subscribe();
+
+    // Channel for quotation_items - needs to resolve quotation_id to check rfq
+    const quotationItemsChannel = supabase
+      .channel(`quotation_items_${rfqId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "quotation_items",
+        },
+        async (payload) => {
+          // Check if this item belongs to a quotation for this RFQ
+          const quotationId = (payload.new as { quotation_id?: string })?.quotation_id;
+          if (quotationId) {
+            // Check if this quotation is for our RFQ
+            const isRelevant = realtimeQuotations.some((q) => q.id === quotationId) ||
+              state.quotations.some((q) => q.id === quotationId && q.rfqId === rfqId);
+            if (isRelevant) {
+              refreshQuotations();
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    // Channel for rfq_suppliers
+    const rfqSuppliersChannel = supabase
+      .channel(`rfq_suppliers_comparison_${rfqId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "rfq_suppliers",
+          filter: `rfq_id=eq.${rfqId}`,
+        },
+        () => {
+          refreshRFQSuppliers();
+          // Also refresh quotations as new supplier assignments may have quotes
+          refreshQuotations();
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscriptions on unmount
+    return () => {
+      supabase.removeChannel(quotationsChannel);
+      supabase.removeChannel(quotationItemsChannel);
+      supabase.removeChannel(rfqSuppliersChannel);
+    };
+  }, [rfqId, state.quotations, state.rfqSuppliers]);
 
   const rfq = state.rfqs.find((r) => r.id === rfqId);
-  const quotations = state.quotations.filter((q) => q.rfqId === rfqId);
+  const quotations = realtimeQuotations;
   const suppliers = quotations.map((q) => ({
     supplier: state.suppliers.find((s) => s.id === q.supplierId),
     quotation: q,
