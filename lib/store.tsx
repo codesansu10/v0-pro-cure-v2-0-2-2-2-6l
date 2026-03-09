@@ -155,17 +155,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // Load data from Supabase on mount
   useEffect(() => {
     async function loadFromSupabase() {
+      console.log("[v0] Store: Starting to load data from Supabase...");
       try {
+        console.log("[v0] Store: Fetching RFQs, suppliers, and rfq_suppliers...");
         const [rfqs, suppliers, rfqSuppliers] = await Promise.all([
           fetchRFQs(),
           fetchSuppliers(),
           fetchRFQSuppliers(),
         ]);
 
+        console.log("[v0] Store: Fetched RFQs:", rfqs.length);
+        console.log("[v0] Store: Fetched suppliers:", suppliers.length);
+        console.log("[v0] Store: Fetched rfqSuppliers:", rfqSuppliers.length);
+
         // Load quotations with line items for all RFQs
         const quotationPromises = rfqs.map((rfq) => fetchQuotationsWithItems(rfq.id));
         const quotationsArrays = await Promise.all(quotationPromises);
         const allQuotations = quotationsArrays.flat();
+        console.log("[v0] Store: Fetched quotations:", allQuotations.length);
 
         setState((prev) => ({
           ...prev,
@@ -174,9 +181,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           rfqSuppliers: rfqSuppliers.length > 0 ? rfqSuppliers : prev.rfqSuppliers,
           quotations: allQuotations.length > 0 ? allQuotations : prev.quotations,
         }));
+        console.log("[v0] Store: Successfully loaded data from Supabase");
         setDataLoaded(true);
       } catch (err) {
-        console.error("[Supabase] Error loading data:", err);
+        console.error("[v0] Store ERROR loading data from Supabase:", err);
         setDataLoaded(true); // Still mark as loaded to use fallback data
       }
     }
@@ -198,14 +206,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const now = new Date().toISOString();
       const newRFQ: RFQ = { ...rfq, id, createdAt: now, updatedAt: now };
       
+      console.log("[v0] Store: Creating new RFQ:", id);
+      console.log("[v0] Store: RFQ data:", newRFQ);
+      
       // Update local state immediately
       setState((prev) => ({
         ...prev,
         rfqs: [...prev.rfqs, newRFQ],
       }));
 
-      // Insert into Supabase (async, non-blocking)
-      insertRFQ(newRFQ);
+      // Insert into Supabase
+      console.log("[v0] Store: Calling insertRFQ to persist to Supabase...");
+      insertRFQ(newRFQ).then((success) => {
+        if (success) {
+          console.log("[v0] Store: RFQ persisted to Supabase successfully:", id);
+        } else {
+          console.error("[v0] Store: FAILED to persist RFQ to Supabase:", id);
+        }
+      });
 
       return id;
     },
@@ -227,6 +245,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const assignSupplier = useCallback((rfqId: string, supplierId: string) => {
+    console.log("[v0] Store: Assigning supplier", supplierId, "to RFQ", rfqId);
+    
     const assignment: RFQSupplier = {
       rfqId,
       supplierId,
@@ -239,15 +259,27 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const exists = prev.rfqSuppliers.find(
         (rs) => rs.rfqId === rfqId && rs.supplierId === supplierId
       );
-      if (exists) return prev;
+      if (exists) {
+        console.log("[v0] Store: Supplier assignment already exists, skipping");
+        return prev;
+      }
       return { ...prev, rfqSuppliers: [...prev.rfqSuppliers, assignment] };
     });
     
     // Insert into Supabase
-    insertRFQSupplier(assignment);
+    console.log("[v0] Store: Calling insertRFQSupplier to persist to Supabase...");
+    insertRFQSupplier(assignment).then((success) => {
+      if (success) {
+        console.log("[v0] Store: RFQ supplier assignment persisted to Supabase");
+      } else {
+        console.error("[v0] Store: FAILED to persist RFQ supplier assignment to Supabase");
+      }
+    });
   }, []);
 
   const updateRFQSupplier = useCallback((rfqId: string, supplierId: string, updates: Partial<RFQSupplier>) => {
+    console.log("[v0] Store: Updating RFQ supplier status:", rfqId, supplierId, updates);
+    
     setState((prev) => ({
       ...prev,
       rfqSuppliers: prev.rfqSuppliers.map((rs) =>
@@ -259,7 +291,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     
     // Sync to Supabase
     if (updates.status !== undefined || updates.quoted !== undefined) {
-      updateRFQSupplierStatus(rfqId, supplierId, updates.status, updates.quoted);
+      console.log("[v0] Store: Calling updateRFQSupplierStatus to persist to Supabase...");
+      updateRFQSupplierStatus(rfqId, supplierId, { status: updates.status, quoted: updates.quoted }).then((success) => {
+        if (success) {
+          console.log("[v0] Store: RFQ supplier status persisted to Supabase");
+        } else {
+          console.error("[v0] Store: FAILED to persist RFQ supplier status to Supabase");
+        }
+      });
     }
   }, []);
 
@@ -269,6 +308,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const now = new Date().toISOString();
       const newQuotation: Quotation = { ...quotation, id, submittedAt: now };
       
+      console.log("[v0] Store: Creating new quotation:", id);
+      console.log("[v0] Store: Quotation data:", newQuotation);
+      
       // Update local state
       setState((prev) => ({
         ...prev,
@@ -276,12 +318,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }));
 
       // Insert quotation into Supabase
-      insertQuotation(newQuotation);
-      
-      // Insert line items if present
-      if (newQuotation.lineItems && newQuotation.lineItems.length > 0) {
-        insertQuotationItems(id, newQuotation.lineItems);
-      }
+      console.log("[v0] Store: Calling insertQuotation to persist to Supabase...");
+      insertQuotation(newQuotation).then((quotationId) => {
+        if (quotationId) {
+          console.log("[v0] Store: Quotation persisted to Supabase:", quotationId);
+          
+          // Insert line items if present
+          if (newQuotation.lineItems && newQuotation.lineItems.length > 0) {
+            console.log("[v0] Store: Inserting", newQuotation.lineItems.length, "line items...");
+            insertQuotationItems(id, newQuotation.lineItems).then((success) => {
+              if (success) {
+                console.log("[v0] Store: Quotation items persisted to Supabase");
+              } else {
+                console.error("[v0] Store: FAILED to persist quotation items to Supabase");
+              }
+            });
+          }
+        } else {
+          console.error("[v0] Store: FAILED to persist quotation to Supabase:", id);
+        }
+      });
     },
     [generateId]
   );
