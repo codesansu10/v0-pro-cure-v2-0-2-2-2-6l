@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useStore } from "@/lib/store";
+import { triggerRFQSentToSuppliers } from "@/lib/n8n-webhooks";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -110,6 +111,13 @@ export function ProcurementDashboard() {
       });
     }
     handleStatusChange(rfqId, "Sent to Supplier");
+    // Trigger n8n webhook
+    triggerRFQSentToSuppliers({
+      rfqId,
+      project: rfq?.project ?? "",
+      component: rfq?.component ?? "",
+      supplierIds: selectedSuppliers,
+    }).catch(() => {});
     setAssignDialog(null);
     setSelectedSuppliers([]);
   }
