@@ -171,27 +171,42 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const quotationsArrays = await Promise.all(quotationPromises);
         const allQuotations = quotationsArrays.flat();
 
-        // Merge Supabase suppliers on top of hardcoded defaults.
-        // Starting from the hardcoded default ensures all required fields are present,
-        // then we overlay the DB values (e.g. updated name/email). We always keep
-        // the hardcoded `role` so switching between supplier views never breaks.
-        const mergedSuppliers =
-          suppliers.length > 0
-            ? defaultSuppliers.map((def) => {
-                const fromDb = suppliers.find((s) => s.id === def.id);
-                // Spread order: default first, then DB values on top, then
-                // explicitly restore `role` from the default to prevent overwrite.
-                return fromDb ? { ...def, ...fromDb, role: def.role } : def;
-              })
-            : defaultSuppliers;
+        setState((prev) => {
+          // Merge Supabase suppliers with defaults — preserve role and other detailed fields
+          let mergedSuppliers = prev.suppliers;
+          if (suppliers.length > 0) {
+            mergedSuppliers = prev.suppliers.map((defaultSup) => {
+              const supabaseSup = suppliers.find((s) => s.id === defaultSup.id);
+              if (supabaseSup) {
+                return {
+                  ...defaultSup,
+                  name: supabaseSup.name || defaultSup.name,
+                  contactPerson: supabaseSup.contactPerson || defaultSup.contactPerson,
+                  email: supabaseSup.email || defaultSup.email,
+                  commodityFocus: supabaseSup.commodityFocus || defaultSup.commodityFocus,
+                  rating: supabaseSup.rating || defaultSup.rating,
+                  // CRITICAL: Always preserve the correct role from defaults.
+                  // The Supabase role column may be null or incorrect during initial setup,
+                  // which would cause supplier dashboards to show a white screen.
+                  role: defaultSup.role,
+                };
+              }
+              return defaultSup;
+            });
+            // Also add any Supabase suppliers not in defaults
+            const defaultIds = prev.suppliers.map((s) => s.id);
+            const newSuppliers = suppliers.filter((s) => !defaultIds.includes(s.id));
+            mergedSuppliers = [...mergedSuppliers, ...newSuppliers];
+          }
 
-        setState((prev) => ({
-          ...prev,
-          rfqs: rfqs.length > 0 ? rfqs : prev.rfqs,
-          suppliers: mergedSuppliers,
-          rfqSuppliers: rfqSuppliers.length > 0 ? rfqSuppliers : prev.rfqSuppliers,
-          quotations: allQuotations.length > 0 ? allQuotations : prev.quotations,
-        }));
+          return {
+            ...prev,
+            rfqs: rfqs.length > 0 ? rfqs : prev.rfqs,
+            suppliers: mergedSuppliers,
+            rfqSuppliers: rfqSuppliers.length > 0 ? rfqSuppliers : prev.rfqSuppliers,
+            quotations: allQuotations.length > 0 ? allQuotations : prev.quotations,
+          };
+        });
         setDataLoaded(true);
       } catch (err) {
         console.error("[Supabase] Error loading data:", err);
