@@ -97,7 +97,12 @@ export function SupplierDashboard() {
   }
 
   const supplier = state.suppliers.find((s) => s.role === currentRole);
-  if (!supplier) return null;
+  if (!supplier)
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-muted-foreground">Supplier profile not found. Please refresh or contact your administrator.</p>
+      </div>
+    );
 
   const assignedRFQIds = state.rfqSuppliers
     .filter((rs) => rs.supplierId === supplier.id)
