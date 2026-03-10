@@ -1,10 +1,7 @@
 "use client";
 
-// Supplier Dashboard - All hooks called before conditional returns
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useStore } from "@/lib/store";
-import { supabase } from "@/lib/supabaseClient";
-import { fetchSupplierRFQs } from "@/lib/supabase-data";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -53,71 +50,6 @@ export function SupplierDashboard() {
   const [quoteDialog, setQuoteDialog] = useState<string | null>(null);
   const [chatRFQId, setChatRFQId] = useState<string | null>(null);
   const [viewRFQ, setViewRFQ] = useState<string | null>(null);
-  
-  // Local state for realtime-updated data
-  const [realtimeRFQSuppliers, setRealtimeRFQSuppliers] = useState(state.rfqSuppliers);
-  
-  // All useState hooks must be called before any conditional returns
-  const [lineItems, setLineItems] = useState<QuotationLineItem[]>([{
-    id: `LI-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    itemName: "",
-    description: "",
-    quantity: 1,
-    unitPrice: 0,
-    totalPrice: 0,
-  }]);
-  const [quotationPdf, setQuotationPdf] = useState<File | null>(null);
-  const [supportingDocs, setSupportingDocs] = useState<File | null>(null);
-  const [quoteForm, setQuoteForm] = useState({
-    bonusMalus: 0,
-    deliveryTime: 4,
-    paymentTerms: "Net 30",
-    incoterms: "EXW",
-    comments: "",
-  });
-  
-  // Get current supplier
-  const supplier = state.suppliers.find((s) => s.role === currentRole);
-  
-  // Subscribe to realtime changes on rfq_suppliers for this supplier
-  useEffect(() => {
-    if (!supplier) return;
-    
-    // Sync local state with store state initially
-    setRealtimeRFQSuppliers(state.rfqSuppliers);
-    
-    // Set up realtime subscription filtered by supplier_id
-    const channel = supabase
-      .channel(`rfq_suppliers_${supplier.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "rfq_suppliers",
-          filter: `supplier_id=eq.${supplier.id}`,
-        },
-        async (payload) => {
-          // Refresh supplier's RFQ assignments from Supabase
-          const updated = await fetchSupplierRFQs(supplier.id);
-          const assignments = updated.map((u) => u.assignment);
-          setRealtimeRFQSuppliers((prev) => {
-            // Merge: keep assignments for other suppliers, update this supplier's
-            const otherSuppliers = prev.filter((rs) => rs.supplierId !== supplier.id);
-            return [...otherSuppliers, ...assignments];
-          });
-        }
-      )
-      .subscribe();
-
-    // Cleanup subscription on unmount
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [supplier?.id, state.rfqSuppliers]);
-
-  // Early return if no supplier found - MUST come after all hooks
-  if (!supplier) return null;
 
   const emptyLineItem = (): QuotationLineItem => ({
     id: `LI-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -126,6 +58,18 @@ export function SupplierDashboard() {
     quantity: 1,
     unitPrice: 0,
     totalPrice: 0,
+  });
+
+  const [lineItems, setLineItems] = useState<QuotationLineItem[]>([emptyLineItem()]);
+  const [quotationPdf, setQuotationPdf] = useState<File | null>(null);
+  const [supportingDocs, setSupportingDocs] = useState<File | null>(null);
+
+  const [quoteForm, setQuoteForm] = useState({
+    bonusMalus: 0,
+    deliveryTime: 4,
+    paymentTerms: "Net 30",
+    incoterms: "EXW",
+    comments: "",
   });
 
   const calculatedTotalPrice = lineItems.reduce((sum, item) => sum + item.totalPrice, 0);
@@ -152,8 +96,10 @@ export function SupplierDashboard() {
     }
   }
 
-  // Use realtime-updated rfqSuppliers for live updates
-  const assignedRFQIds = realtimeRFQSuppliers
+  const supplier = state.suppliers.find((s) => s.role === currentRole);
+  if (!supplier) return null;
+
+  const assignedRFQIds = state.rfqSuppliers
     .filter((rs) => rs.supplierId === supplier.id)
     .map((rs) => rs.rfqId);
 
@@ -296,8 +242,8 @@ export function SupplierDashboard() {
               </TableHeader>
               <TableBody>
                 {myRFQs.map((rfq) => {
-                  // Get the supplier-specific assignment record from realtime data
-                  const supplierAssignment = realtimeRFQSuppliers.find(
+                  // Get the supplier-specific assignment record for this RFQ
+                  const supplierAssignment = state.rfqSuppliers.find(
                     (rs) => rs.rfqId === rfq.id && rs.supplierId === supplier.id
                   );
                   const supplierStatus = supplierAssignment?.status || "RFQ Received";

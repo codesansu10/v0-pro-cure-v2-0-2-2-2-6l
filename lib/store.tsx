@@ -1,19 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from "react";
+import React, { createContext, useContext, useState, useCallback, useRef } from "react";
 import type { AppState, Role, RFQ, Quotation, QCS, Message, RFQSupplier, RFQSupplierStatus, Supplier, Notification } from "./types";
-import {
-  insertRFQ,
-  insertRFQSupplier,
-  insertQuotation,
-  insertQuotationItems,
-  updateRFQStatus,
-  updateRFQSupplierStatus,
-  fetchRFQs,
-  fetchSuppliers,
-  fetchRFQSuppliers,
-  fetchQuotationsWithItems,
-} from "./supabase-data";
 
 const defaultUsers = [
   { id: "USR-001", name: "Max Mueller", role: "engineer" as Role, email: "m.mueller@thyssenkrupp.com" },
@@ -29,10 +17,10 @@ const defaultUsers = [
 const defaultSuppliers = [
   {
     id: "SUP-001",
-    name: "Supplier A",
-    contactPerson: "Anna Keller",
-    email: "suppliera@steelcorp.com",
-    commodityFocus: "Steel Corp",
+    name: "Steel Corp GmbH",
+    contactPerson: "Hans Becker",
+    email: "contact@steelcorp.de",
+    commodityFocus: "Steel Plates, Structural Steel",
     status: "Approved" as const,
     rating: "A" as const,
     role: "supplier_a" as const,
@@ -44,25 +32,25 @@ const defaultSuppliers = [
   },
   {
     id: "SUP-002",
-    name: "Supplier B",
-    contactPerson: "Markus Weber",
-    email: "supplierb@industrialmetals.com",
-    commodityFocus: "Industrial Metals",
+    name: "MetalWorks AG",
+    contactPerson: "Sabine Richter",
+    email: "info@metalworks.de",
+    commodityFocus: "Machined Components, CNC Parts",
     status: "Approved" as const,
-    rating: "A" as const,
+    rating: "B" as const,
     role: "supplier_b" as const,
     approved: true,
     capacityConfirmed: true,
-    technicalCompliance: true,
+    technicalCompliance: false,
     commercialSpecCompliant: true,
-    riskScore: 15,
+    riskScore: 28,
   },
   {
     id: "SUP-003",
-    name: "Supplier C",
-    contactPerson: "Sophie Lang",
-    email: "supplierc@precisionparts.com",
-    commodityFocus: "Precision Parts",
+    name: "Precision Parts Ltd",
+    contactPerson: "James Wilson",
+    email: "sales@precisionparts.co.uk",
+    commodityFocus: "Precision Bearings, Fasteners",
     status: "Approved" as const,
     rating: "A" as const,
     role: "supplier_c" as const,
@@ -70,37 +58,37 @@ const defaultSuppliers = [
     capacityConfirmed: true,
     technicalCompliance: true,
     commercialSpecCompliant: true,
-    riskScore: 10,
+    riskScore: 8,
   },
   {
     id: "SUP-004",
-    name: "Supplier D",
-    contactPerson: "Daniel Braun",
-    email: "supplierd@globalsteel.com",
-    commodityFocus: "Global Steel",
-    status: "Approved" as const,
+    name: "AlloyTech Industries",
+    contactPerson: "Maria Garcia",
+    email: "procurement@alloytech.com",
+    commodityFocus: "Aluminum Alloys, Titanium Components",
+    status: "Pending" as const,
     rating: "B" as const,
     role: "supplier_d" as const,
-    approved: true,
+    approved: false,
     capacityConfirmed: true,
     technicalCompliance: true,
-    commercialSpecCompliant: true,
-    riskScore: 25,
+    commercialSpecCompliant: false,
+    riskScore: 35,
   },
   {
     id: "SUP-005",
-    name: "Supplier E",
-    contactPerson: "Laura Fischer",
-    email: "suppliere@eurocomponents.com",
-    commodityFocus: "Euro Components",
+    name: "EuroForge SA",
+    contactPerson: "Pierre Dubois",
+    email: "contact@euroforge.eu",
+    commodityFocus: "Forged Parts, Heavy Machinery Components",
     status: "Approved" as const,
-    rating: "A" as const,
+    rating: "C" as const,
     role: "supplier_e" as const,
     approved: true,
-    capacityConfirmed: true,
+    capacityConfirmed: false,
     technicalCompliance: true,
     commercialSpecCompliant: true,
-    riskScore: 18,
+    riskScore: 42,
   },
 ];
 
@@ -150,38 +138,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [selectedRFQId, setSelectedRFQId] = useState<string | null>(null);
   const counterRef = useRef(1);
-  const [dataLoaded, setDataLoaded] = useState(false);
-
-  // Load data from Supabase on mount
-  useEffect(() => {
-    async function loadFromSupabase() {
-      try {
-        const [rfqs, suppliers, rfqSuppliers] = await Promise.all([
-          fetchRFQs(),
-          fetchSuppliers(),
-          fetchRFQSuppliers(),
-        ]);
-
-        // Load quotations with line items for all RFQs
-        const quotationPromises = rfqs.map((rfq) => fetchQuotationsWithItems(rfq.id));
-        const quotationsArrays = await Promise.all(quotationPromises);
-        const allQuotations = quotationsArrays.flat();
-
-        setState((prev) => ({
-          ...prev,
-          rfqs: rfqs.length > 0 ? rfqs : prev.rfqs,
-          suppliers: suppliers.length > 0 ? suppliers : prev.suppliers,
-          rfqSuppliers: rfqSuppliers.length > 0 ? rfqSuppliers : prev.rfqSuppliers,
-          quotations: allQuotations.length > 0 ? allQuotations : prev.quotations,
-        }));
-        setDataLoaded(true);
-      } catch (err) {
-        console.error("[Supabase] Error loading data:", err);
-        setDataLoaded(true);
-      }
-    }
-    loadFromSupabase();
-  }, []);
 
   const generateId = useCallback((prefix: string) => {
     const num = counterRef.current++;
@@ -196,21 +152,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     (rfq: Omit<RFQ, "id" | "createdAt" | "updatedAt">) => {
       const id = generateId("RFQ");
       const now = new Date().toISOString();
-      const newRFQ: RFQ = { ...rfq, id, createdAt: now, updatedAt: now };
-      
-      // Update local state immediately for optimistic UI
       setState((prev) => ({
         ...prev,
-        rfqs: [...prev.rfqs, newRFQ],
+        rfqs: [...prev.rfqs, { ...rfq, id, createdAt: now, updatedAt: now }],
       }));
-      
-      // Persist to Supabase
-      insertRFQ(newRFQ).then((success) => {
-        if (!success) {
-          console.error("[Supabase] Failed to persist RFQ:", id);
-        }
-      });
-
       return id;
     },
     [generateId]
@@ -223,35 +168,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         r.id === id ? { ...r, ...updates, updatedAt: new Date().toISOString() } : r
       ),
     }));
-    
-    // Sync status change to Supabase
-    if (updates.status) {
-      updateRFQStatus(id, updates.status);
-    }
   }, []);
 
   const assignSupplier = useCallback((rfqId: string, supplierId: string) => {
-    const assignment: RFQSupplier = {
-      rfqId,
-      supplierId,
-      assignedAt: new Date().toISOString(),
-      status: "RFQ Received",
-      quoted: false,
-    };
-    
     setState((prev) => {
       const exists = prev.rfqSuppliers.find(
         (rs) => rs.rfqId === rfqId && rs.supplierId === supplierId
       );
       if (exists) return prev;
+      const assignment: RFQSupplier = {
+        rfqId,
+        supplierId,
+        assignedAt: new Date().toISOString(),
+        status: "RFQ Received",
+        quoted: false,
+      };
       return { ...prev, rfqSuppliers: [...prev.rfqSuppliers, assignment] };
-    });
-    
-    // Persist to Supabase
-    insertRFQSupplier(assignment).then((success) => {
-      if (!success) {
-        console.error("[Supabase] Failed to persist RFQ supplier assignment");
-      }
     });
   }, []);
 
@@ -264,43 +196,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           : rs
       ),
     }));
-    
-    // Sync to Supabase
-    if (updates.status !== undefined || updates.quoted !== undefined) {
-      updateRFQSupplierStatus(rfqId, supplierId, { status: updates.status, quoted: updates.quoted }).then((success) => {
-        if (!success) {
-          console.error("[Supabase] Failed to persist RFQ supplier status");
-        }
-      });
-    }
   }, []);
 
   const addQuotation = useCallback(
     (quotation: Omit<Quotation, "id" | "submittedAt">) => {
       const id = generateId("QOT");
-      const now = new Date().toISOString();
-      const newQuotation: Quotation = { ...quotation, id, submittedAt: now };
-      
-      // Update local state
       setState((prev) => ({
         ...prev,
-        quotations: [...prev.quotations, newQuotation],
+        quotations: [
+          ...prev.quotations,
+          { ...quotation, id, submittedAt: new Date().toISOString() },
+        ],
       }));
-
-      // Persist to Supabase
-      insertQuotation(newQuotation).then((quotationId) => {
-        if (quotationId) {
-          if (newQuotation.lineItems && newQuotation.lineItems.length > 0) {
-            insertQuotationItems(id, newQuotation.lineItems).then((success) => {
-              if (!success) {
-                console.error("[Supabase] Failed to persist quotation items");
-              }
-            });
-          }
-        } else {
-          console.error("[Supabase] Failed to persist quotation:", id);
-        }
-      });
     },
     [generateId]
   );
