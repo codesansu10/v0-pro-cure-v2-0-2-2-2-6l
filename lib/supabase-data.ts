@@ -28,16 +28,31 @@ function toSupabaseRFQ(rfq: RFQ): Record<string, unknown> {
   };
 }
 
+// Map a supplier ID like "SUP-001" to a role like "supplier_a"
+const supplierIdToRoleMap: Record<string, Supplier["role"]> = {
+  "SUP-001": "supplier_a",
+  "SUP-002": "supplier_b",
+  "SUP-003": "supplier_c",
+  "SUP-004": "supplier_d",
+  "SUP-005": "supplier_e",
+};
+
 function fromSupabaseSupplier(row: Record<string, unknown>): Supplier {
+  const id = (row.id as string) || "";
+  // Use the role from the DB row; if missing/null, derive it from the supplier's ID
+  const role: Supplier["role"] =
+    (row.role as Supplier["role"]) ||
+    supplierIdToRoleMap[id] ||
+    "supplier_a";
   return {
-    id: (row.id as string) || "",
+    id,
     name: (row.name as string) || "",
     contactPerson: (row.contact_name as string) || "",
     email: (row.email as string) || "",
     commodityFocus: (row.company as string) || "",
     status: "Approved" as const,
     rating: (row.rating as "A" | "B" | "C") || "B",
-    role: (row.role as Supplier["role"]) || "supplier_a",
+    role,
     approved: true,
     capacityConfirmed: true,
     technicalCompliance: true,
