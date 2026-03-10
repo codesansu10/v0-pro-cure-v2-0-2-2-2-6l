@@ -1,6 +1,7 @@
 "use client";
 
 import { useStore } from "@/lib/store";
+import { triggerHoPDecision } from "@/lib/n8n-webhooks";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -129,6 +130,8 @@ export function HOPDashboard() {
         });
       });
     }
+    // Trigger n8n webhook
+    triggerHoPDecision({ qcsId, rfqId: qcs.rfqId, decision: "approved" }).catch(() => {});
   }
 
   function handleReject(qcsId: string) {
@@ -150,6 +153,8 @@ export function HOPDashboard() {
       message: `QCS ${qcsId} for ${rfq?.project || "Unknown"} has been rejected by Head of Procurement.${rejectComment ? ` Comment: "${rejectComment}"` : ""}`,
       type: "decision",
     });
+    // Trigger n8n webhook
+    triggerHoPDecision({ qcsId, rfqId: qcs.rfqId, decision: "rejected", comment: rejectComment || undefined }).catch(() => {});
 
     setRejectDialog(null);
     setRejectComment("");

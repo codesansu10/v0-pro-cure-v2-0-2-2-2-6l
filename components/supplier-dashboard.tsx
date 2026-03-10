@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useStore } from "@/lib/store";
+import { triggerQuotationSubmitted } from "@/lib/n8n-webhooks";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -155,6 +156,13 @@ export function SupplierDashboard() {
       message: `${supplier!.name} submitted a quotation of ${calculatedTotalPrice.toLocaleString("de-DE")} EUR for ${rfq?.project || "Unknown"} - ${rfq?.component || "Unknown"}.`,
       type: "quote",
     });
+    // Trigger n8n webhook
+    triggerQuotationSubmitted({
+      rfqId,
+      supplierId: supplier!.id,
+      supplierName: supplier!.name,
+      totalPrice: calculatedTotalPrice,
+    }).catch(() => {});
     setQuoteDialog(null);
     setLineItems([emptyLineItem()]);
     setQuotationPdf(null);

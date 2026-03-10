@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from "react";
 import type { AppState, Role, RFQ, Quotation, QCS, Message, RFQSupplier, RFQSupplierStatus, Supplier, Notification } from "./types";
+import { triggerRFQSubmitted } from "./n8n-webhooks";
 import {
   insertRFQ,
   insertRFQSupplier,
@@ -253,6 +254,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           console.error("[Supabase] Failed to persist RFQ:", id);
         }
       });
+
+      // Trigger n8n webhook for submitted RFQs
+      if (rfq.status === "Submitted") {
+        const engineer = defaultUsers.find((u) => u.id === rfq.createdBy);
+        triggerRFQSubmitted({
+          rfqId: id,
+          project: rfq.project,
+          component: rfq.component,
+          budget: rfq.budget,
+          engineerName: engineer?.name ?? "Unknown Engineer",
+        }).catch(() => {});
+      }
 
       return id;
     },
