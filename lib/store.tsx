@@ -12,6 +12,15 @@ import {
   fetchSuppliers,
   fetchRFQSuppliers,
   fetchQuotationsWithItems,
+  fetchQCS,
+  insertQCS as insertQCSToSupabase,
+  updateQCSInSupabase,
+  fetchMessages,
+  insertMessage as insertMessageToSupabase,
+  fetchNotifications,
+  insertNotification as insertNotificationToSupabase,
+  updateNotificationRead,
+  updateRFQFields,
 } from "./supabase-data";
 
 const defaultUsers = [
@@ -160,10 +169,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function loadFromSupabase() {
       try {
-        const [rfqs, suppliers, rfqSuppliers] = await Promise.all([
+        const [rfqs, suppliers, rfqSuppliers, qcsData, messagesData, notificationsData] = await Promise.all([
           fetchRFQs(),
           fetchSuppliers(),
           fetchRFQSuppliers(),
+          fetchQCS(),
+          fetchMessages(),
+          fetchNotifications(),
         ]);
 
         // Load quotations with line items for all RFQs
@@ -205,6 +217,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             suppliers: mergedSuppliers,
             rfqSuppliers: rfqSuppliers.length > 0 ? rfqSuppliers : prev.rfqSuppliers,
             quotations: allQuotations.length > 0 ? allQuotations : prev.quotations,
+            qcs: qcsData.length > 0 ? qcsData : prev.qcs,
+            messages: messagesData.length > 0 ? messagesData : prev.messages,
+            notifications: notificationsData.length > 0 ? notificationsData : prev.notifications,
           };
         });
         setDataLoaded(true);
@@ -251,6 +266,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         r.id === id ? { ...r, ...updates, updatedAt: new Date().toISOString() } : r
       ),
     }));
+    // Persist to Supabase
+    updateRFQFields(id, { ...updates, updatedAt: new Date().toISOString() }).then((success) => {
+      if (!success) console.error("[Supabase] Failed to persist RFQ update:", id);
+    });
   }, []);
 
   const assignSupplier = useCallback((rfqId: string, supplierId: string) => {
@@ -340,10 +359,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const addQCS = useCallback(
     (qcs: Omit<QCS, "id" | "createdAt">) => {
       const id = generateId("QCS");
+      const newQCS: QCS = { ...qcs, id, createdAt: new Date().toISOString() };
       setState((prev) => ({
         ...prev,
-        qcs: [...prev.qcs, { ...qcs, id, createdAt: new Date().toISOString() }],
+        qcs: [...prev.qcs, newQCS],
       }));
+      // Persist to Supabase
+      insertQCSToSupabase(newQCS).then((success) => {
+        if (!success) console.error("[Supabase] Failed to persist QCS:", id);
+      });
     },
     [generateId]
   );
@@ -353,18 +377,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       ...prev,
       qcs: prev.qcs.map((q) => (q.id === id ? { ...q, ...updates } : q)),
     }));
+    // Persist to Supabase
+    updateQCSInSupabase(id, updates).then((success) => {
+      if (!success) console.error("[Supabase] Failed to persist QCS update:", id);
+    });
   }, []);
 
   const addMessage = useCallback(
     (message: Omit<Message, "id" | "timestamp">) => {
       const id = generateId("MSG");
+      const newMsg: Message = { ...message, id, timestamp: new Date().toISOString() };
       setState((prev) => ({
         ...prev,
-        messages: [
-          ...prev.messages,
-          { ...message, id, timestamp: new Date().toISOString() },
-        ],
+        messages: [...prev.messages, newMsg],
       }));
+      // Persist to Supabase
+      insertMessageToSupabase(newMsg).then((success) => {
+        if (!success) console.error("[Supabase] Failed to persist message:", id);
+      });
     },
     [generateId]
   );
@@ -383,13 +413,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const addNotification = useCallback(
     (notification: Omit<Notification, "id" | "createdAt" | "read">) => {
       const id = generateId("NOT");
+      const newNotif: Notification = { ...notification, id, createdAt: new Date().toISOString(), read: false };
       setState((prev) => ({
         ...prev,
-        notifications: [
-          { ...notification, id, createdAt: new Date().toISOString(), read: false },
-          ...prev.notifications,
-        ],
+        notifications: [newNotif, ...prev.notifications],
       }));
+      // Persist to Supabase
+      insertNotificationToSupabase(newNotif).then((success) => {
+        if (!success) console.error("[Supabase] Failed to persist notification:", id);
+      });
     },
     [generateId]
   );
@@ -401,6 +433,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         n.id === id ? { ...n, read: true } : n
       ),
     }));
+    // Persist to Supabase
+    updateNotificationRead(id, true).then((success) => {
+      if (!success) console.error("[Supabase] Failed to persist notification read:", id);
+    });
   }, []);
 
   const markAllNotificationsRead = useCallback(() => {
