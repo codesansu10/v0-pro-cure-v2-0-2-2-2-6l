@@ -56,6 +56,25 @@ export function SupplierDashboard() {
   // Local state for realtime-updated data
   const [realtimeRFQSuppliers, setRealtimeRFQSuppliers] = useState(state.rfqSuppliers);
   
+  // All useState hooks must be called before any conditional returns
+  const [lineItems, setLineItems] = useState<QuotationLineItem[]>([{
+    id: `LI-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    itemName: "",
+    description: "",
+    quantity: 1,
+    unitPrice: 0,
+    totalPrice: 0,
+  }]);
+  const [quotationPdf, setQuotationPdf] = useState<File | null>(null);
+  const [supportingDocs, setSupportingDocs] = useState<File | null>(null);
+  const [quoteForm, setQuoteForm] = useState({
+    bonusMalus: 0,
+    deliveryTime: 4,
+    paymentTerms: "Net 30",
+    incoterms: "EXW",
+    comments: "",
+  });
+  
   // Get current supplier
   const supplier = state.suppliers.find((s) => s.role === currentRole);
   
@@ -96,7 +115,7 @@ export function SupplierDashboard() {
     };
   }, [supplier?.id, state.rfqSuppliers]);
 
-  // Early return if no supplier found
+  // Early return if no supplier found - MUST come after all hooks
   if (!supplier) return null;
 
   const emptyLineItem = (): QuotationLineItem => ({
@@ -106,18 +125,6 @@ export function SupplierDashboard() {
     quantity: 1,
     unitPrice: 0,
     totalPrice: 0,
-  });
-
-  const [lineItems, setLineItems] = useState<QuotationLineItem[]>([emptyLineItem()]);
-  const [quotationPdf, setQuotationPdf] = useState<File | null>(null);
-  const [supportingDocs, setSupportingDocs] = useState<File | null>(null);
-
-  const [quoteForm, setQuoteForm] = useState({
-    bonusMalus: 0,
-    deliveryTime: 4,
-    paymentTerms: "Net 30",
-    incoterms: "EXW",
-    comments: "",
   });
 
   const calculatedTotalPrice = lineItems.reduce((sum, item) => sum + item.totalPrice, 0);
