@@ -438,7 +438,7 @@ export function SupplierDashboard() {
                     <TableRow className="hover:bg-transparent">
                       <TableHead className="text-[10px] font-semibold uppercase h-8 w-36">Item Name</TableHead>
                       <TableHead className="text-[10px] font-semibold uppercase h-8">Description</TableHead>
-                      <TableHead className="text-[10px] font-semibold uppercase h-8 w-25">Qty</TableHead>
+                      <TableHead className="text-[10px] font-semibold uppercase h-8 w-29">Qty</TableHead>
                       <TableHead className="text-[10px] font-semibold uppercase h-8 w-28">Unit Price</TableHead>
                       <TableHead className="text-[10px] font-semibold uppercase h-8 w-28">Total</TableHead>
                       <TableHead className="text-[10px] font-semibold uppercase h-8 w-10"></TableHead>
