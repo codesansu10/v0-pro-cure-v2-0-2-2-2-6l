@@ -438,7 +438,7 @@ export function SupplierDashboard() {
                     <TableRow className="hover:bg-transparent">
                       <TableHead className="text-[10px] font-semibold uppercase h-8 w-36">Item Name</TableHead>
                       <TableHead className="text-[10px] font-semibold uppercase h-8">Description</TableHead>
-                      <TableHead className="text-[10px] font-semibold uppercase h-8 w-29">Qty</TableHead>
+                      <TableHead className="text-[10px] font-semibold uppercase h-8 w-35">Qty</TableHead>
                       <TableHead className="text-[10px] font-semibold uppercase h-8 w-28">Unit Price</TableHead>
                       <TableHead className="text-[10px] font-semibold uppercase h-8 w-28">Total</TableHead>
                       <TableHead className="text-[10px] font-semibold uppercase h-8 w-10"></TableHead>
@@ -465,7 +465,7 @@ export function SupplierDashboard() {
                         </TableCell>
                         <TableCell className="p-1">
                           <Input
-                            className="h-7 text-xs w-full"
+                            className="h-7 text-xs"
                             type="number"
                             min="1"
                             value={item.quantity || ""}
