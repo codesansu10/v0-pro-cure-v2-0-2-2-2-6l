@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useStore } from "@/lib/store";
-import { triggerRFQSentToSuppliers } from "@/lib/n8n-webhooks";
+import { triggerRFQSentToSuppliers, triggerSupplierInvitation } from "@/lib/n8n-webhooks";
+import { generateSupplierToken, storeSupplierToken, buildSupplierAccessUrl } from "@/lib/supplier-tokens";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -85,11 +86,30 @@ export function ProcurementDashboard() {
     updateRFQ(rfqId, { status: newStatus });
   }
 
-  function handleAssignSuppliers(rfqId: string) {
+  async function handleAssignSuppliers(rfqId: string) {
     const rfq = state.rfqs.find((r) => r.id === rfqId);
-    selectedSuppliers.forEach((sid) => {
+    const supplierDetails: Array<{ supplierId: string; supplierName: string; supplierEmail: string; accessUrl: string }> = [];
+
+    for (const sid of selectedSuppliers) {
       assignSupplier(rfqId, sid);
-      // Notify each supplier
+
+      // Generate token and access URL for this supplier
+      const token = generateSupplierToken(sid, rfqId);
+      const accessUrl = buildSupplierAccessUrl(token);
+
+      // Store token in Supabase (fire-and-forget)
+      storeSupplierToken(token, sid, rfqId).catch(() => {});
+
+      const supplierData = state.suppliers.find((s) => s.id === sid);
+
+      supplierDetails.push({
+        supplierId: sid,
+        supplierName: supplierData?.name || sid,
+        supplierEmail: supplierData?.email || "",
+        accessUrl,
+      });
+
+      // Notify each supplier in-app
       addNotification({
         role: "supplier",
         supplierId: sid,
@@ -98,7 +118,22 @@ export function ProcurementDashboard() {
         message: `You have received a new RFQ for ${rfq?.project || "Unknown"} - ${rfq?.component || "Unknown"}. Please review and submit your quotation.`,
         type: "rfq",
       });
-    });
+
+      // Send individual supplier invitation email via n8n
+      triggerSupplierInvitation({
+        rfqId,
+        project: rfq?.project || "",
+        component: rfq?.component || "",
+        budget: rfq?.budget || 0,
+        deliveryTime: rfq?.deliveryTime || 4,
+        supplierId: sid,
+        supplierName: supplierData?.name || sid,
+        supplierEmail: supplierData?.email || "",
+        accessUrl,
+        procurementContact: user.email,
+      }).catch(() => {});
+    }
+
     // Notify the engineer who created the RFQ
     if (rfq) {
       addNotification({
@@ -110,14 +145,21 @@ export function ProcurementDashboard() {
         type: "rfq",
       });
     }
+
     handleStatusChange(rfqId, "Sent to Supplier");
-    // Trigger n8n webhook
+
+    // Send combined webhook for n8n orchestration
+    const engineer = (state.users as Array<{ id: string; email?: string }> | undefined)
+      ?.find((u) => u.id === rfq?.createdBy) || { email: "m.mueller@thyssenkrupp.com" };
     triggerRFQSentToSuppliers({
       rfqId,
       project: rfq?.project ?? "",
       component: rfq?.component ?? "",
-      supplierIds: selectedSuppliers,
+      suppliers: supplierDetails,
+      procurementEmail: user.email,
+      engineerEmail: engineer.email || "m.mueller@thyssenkrupp.com",
     }).catch(() => {});
+
     setAssignDialog(null);
     setSelectedSuppliers([]);
   }

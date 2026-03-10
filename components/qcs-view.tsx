@@ -67,6 +67,8 @@ export function QCSView() {
       project: qcs.project,
       budget: qcs.budget,
       buyer: qcs.buyer,
+      procurementEmail: "a.schmidt@thyssenkrupp.com",
+      hopEmail: "k.weber@thyssenkrupp.com",
     }).catch(() => {});
   }
 

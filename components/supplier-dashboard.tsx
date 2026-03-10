@@ -161,7 +161,10 @@ export function SupplierDashboard() {
       rfqId,
       supplierId: supplier!.id,
       supplierName: supplier!.name,
+      supplierEmail: supplier!.email,
       totalPrice: calculatedTotalPrice,
+      procurementEmail: "a.schmidt@thyssenkrupp.com",
+      engineerEmail: "m.mueller@thyssenkrupp.com",
     }).catch(() => {});
     setQuoteDialog(null);
     setLineItems([emptyLineItem()]);

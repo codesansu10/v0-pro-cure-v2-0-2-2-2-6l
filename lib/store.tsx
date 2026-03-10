@@ -264,6 +264,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           component: rfq.component,
           budget: rfq.budget,
           engineerName: engineer?.name ?? "Unknown Engineer",
+          engineerEmail: engineer?.email ?? "m.mueller@thyssenkrupp.com",
+          procurementEmail: "a.schmidt@thyssenkrupp.com",
         }).catch(() => {});
       }
 
