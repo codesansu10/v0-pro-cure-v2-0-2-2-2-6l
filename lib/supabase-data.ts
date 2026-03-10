@@ -28,16 +28,32 @@ function toSupabaseRFQ(rfq: RFQ): Record<string, unknown> {
   };
 }
 
+const supplierIdToRole: Record<string, Supplier["role"]> = {
+  "SUP-001": "supplier_a",
+  "SUP-002": "supplier_b",
+  "SUP-003": "supplier_c",
+  "SUP-004": "supplier_d",
+  "SUP-005": "supplier_e",
+};
+
+const validSupplierRoles: Supplier["role"][] = ["supplier_a", "supplier_b", "supplier_c", "supplier_d", "supplier_e"];
+
 function fromSupabaseSupplier(row: Record<string, unknown>): Supplier {
+  const id = (row.id as string) || "";
+  const rawRole = row.role as string;
+  const role = validSupplierRoles.includes(rawRole as Supplier["role"])
+    ? (rawRole as Supplier["role"])
+    : supplierIdToRole[id] || "supplier_a";
+
   return {
-    id: (row.id as string) || "",
+    id,
     name: (row.name as string) || "",
     contactPerson: (row.contact_name as string) || "",
     email: (row.email as string) || "",
     commodityFocus: (row.company as string) || "",
     status: "Approved" as const,
     rating: (row.rating as "A" | "B" | "C") || "B",
-    role: (row.role as Supplier["role"]) || "supplier_a",
+    role,
     approved: true,
     capacityConfirmed: true,
     technicalCompliance: true,
@@ -85,6 +101,7 @@ function fromSupabaseQuotationItem(row: Record<string, unknown>): QuotationLineI
 // ===== FETCH FUNCTIONS =====
 
 export async function fetchRFQs(): Promise<RFQ[]> {
+  if (!supabase) return [];
   const { data, error } = await supabase.from("rfqs").select("*").order("created_at", { ascending: false });
   if (error) {
     console.error("[Supabase] Error fetching RFQs:", error.message);
@@ -94,6 +111,7 @@ export async function fetchRFQs(): Promise<RFQ[]> {
 }
 
 export async function fetchSuppliers(): Promise<Supplier[]> {
+  if (!supabase) return [];
   const { data, error } = await supabase.from("suppliers").select("*");
   if (error) {
     console.error("[Supabase] Error fetching suppliers:", error.message);
@@ -103,6 +121,7 @@ export async function fetchSuppliers(): Promise<Supplier[]> {
 }
 
 export async function fetchRFQSuppliers(): Promise<RFQSupplier[]> {
+  if (!supabase) return [];
   const { data, error } = await supabase.from("rfq_suppliers").select("*");
   if (error) {
     console.error("[Supabase] Error fetching RFQ suppliers:", error.message);
@@ -112,6 +131,7 @@ export async function fetchRFQSuppliers(): Promise<RFQSupplier[]> {
 }
 
 export async function fetchQuotations(rfqId?: string): Promise<Quotation[]> {
+  if (!supabase) return [];
   const { data, error } = await supabase.from("quotations").select("*");
   if (error) {
     console.error("[Supabase] Error fetching quotations:", error.message);
@@ -125,6 +145,7 @@ export async function fetchQuotations(rfqId?: string): Promise<Quotation[]> {
 }
 
 export async function fetchQuotationItems(quotationId: string): Promise<QuotationLineItem[]> {
+  if (!supabase) return [];
   const { data, error } = await supabase
     .from("quotation_items")
     .select("*")
@@ -151,6 +172,7 @@ export async function fetchQuotationsWithItems(rfqId: string): Promise<(Quotatio
 // ===== INSERT FUNCTIONS =====
 
 export async function insertRFQ(rfq: RFQ): Promise<boolean> {
+  if (!supabase) return false;
   const supabaseData = toSupabaseRFQ(rfq);
   const { error } = await supabase.from("rfqs").insert(supabaseData).select();
   if (error) {
@@ -161,6 +183,7 @@ export async function insertRFQ(rfq: RFQ): Promise<boolean> {
 }
 
 export async function insertRFQSupplier(assignment: RFQSupplier): Promise<boolean> {
+  if (!supabase) return false;
   const payload = {
     rfq_id: assignment.rfqId,
     supplier_id: assignment.supplierId,
@@ -176,6 +199,7 @@ export async function insertRFQSupplier(assignment: RFQSupplier): Promise<boolea
 }
 
 export async function insertQuotation(quotation: Omit<Quotation, "lineItems">): Promise<string | null> {
+  if (!supabase) return null;
   const payload = {
     id: quotation.id,
     rfq_id: quotation.rfqId,
@@ -196,6 +220,7 @@ export async function insertQuotation(quotation: Omit<Quotation, "lineItems">): 
 }
 
 export async function insertQuotationItems(quotationId: string, items: QuotationLineItem[]): Promise<boolean> {
+  if (!supabase) return false;
   if (items.length === 0) return true;
   
   const rows = items.map((item) => ({
@@ -218,6 +243,7 @@ export async function insertQuotationItems(quotationId: string, items: Quotation
 // ===== UPDATE FUNCTIONS =====
 
 export async function updateRFQStatus(rfqId: string, status: string): Promise<boolean> {
+  if (!supabase) return false;
   const { error } = await supabase
     .from("rfqs")
     .update({ status })
@@ -235,6 +261,7 @@ export async function updateRFQSupplierStatus(
   supplierId: string,
   updates: { status?: RFQSupplierStatus; quoted?: boolean }
 ): Promise<boolean> {
+  if (!supabase) return false;
   const { error } = await supabase
     .from("rfq_suppliers")
     .update(updates)
@@ -251,6 +278,7 @@ export async function updateRFQSupplierStatus(
 // ===== SEED FUNCTION =====
 
 export async function seedSuppliers(): Promise<void> {
+  if (!supabase) return;
   const defaultSuppliers = [
     { id: "SUP-001", name: "Supplier A", company: "Steel Corp", email: "suppliera@steelcorp.com", contact_name: "Anna Keller", rating: "A", role: "supplier_a" },
     { id: "SUP-002", name: "Supplier B", company: "Industrial Metals", email: "supplierb@industrialmetals.com", contact_name: "Markus Weber", rating: "A", role: "supplier_b" },

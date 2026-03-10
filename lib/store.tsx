@@ -171,13 +171,42 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const quotationsArrays = await Promise.all(quotationPromises);
         const allQuotations = quotationsArrays.flat();
 
-        setState((prev) => ({
-          ...prev,
-          rfqs: rfqs.length > 0 ? rfqs : prev.rfqs,
-          suppliers: suppliers.length > 0 ? suppliers : prev.suppliers,
-          rfqSuppliers: rfqSuppliers.length > 0 ? rfqSuppliers : prev.rfqSuppliers,
-          quotations: allQuotations.length > 0 ? allQuotations : prev.quotations,
-        }));
+        setState((prev) => {
+          // Merge Supabase suppliers with defaults — preserve role and other detailed fields
+          let mergedSuppliers = prev.suppliers;
+          if (suppliers.length > 0) {
+            mergedSuppliers = prev.suppliers.map((defaultSup) => {
+              const supabaseSup = suppliers.find((s) => s.id === defaultSup.id);
+              if (supabaseSup) {
+                return {
+                  ...defaultSup,
+                  name: supabaseSup.name || defaultSup.name,
+                  contactPerson: supabaseSup.contactPerson || defaultSup.contactPerson,
+                  email: supabaseSup.email || defaultSup.email,
+                  commodityFocus: supabaseSup.commodityFocus || defaultSup.commodityFocus,
+                  rating: supabaseSup.rating || defaultSup.rating,
+                  // CRITICAL: Always preserve the correct role from defaults.
+                  // The Supabase role column may be null or incorrect during initial setup,
+                  // which would cause supplier dashboards to show a white screen.
+                  role: defaultSup.role,
+                };
+              }
+              return defaultSup;
+            });
+            // Also add any Supabase suppliers not in defaults
+            const defaultIds = prev.suppliers.map((s) => s.id);
+            const newSuppliers = suppliers.filter((s) => !defaultIds.includes(s.id));
+            mergedSuppliers = [...mergedSuppliers, ...newSuppliers];
+          }
+
+          return {
+            ...prev,
+            rfqs: rfqs.length > 0 ? rfqs : prev.rfqs,
+            suppliers: mergedSuppliers,
+            rfqSuppliers: rfqSuppliers.length > 0 ? rfqSuppliers : prev.rfqSuppliers,
+            quotations: allQuotations.length > 0 ? allQuotations : prev.quotations,
+          };
+        });
         setDataLoaded(true);
       } catch (err) {
         console.error("[Supabase] Error loading data:", err);

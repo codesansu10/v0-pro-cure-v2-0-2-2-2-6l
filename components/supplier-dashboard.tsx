@@ -97,7 +97,30 @@ export function SupplierDashboard() {
   }
 
   const supplier = state.suppliers.find((s) => s.role === currentRole);
-  if (!supplier) return null;
+  if (!supplier) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-4">
+          <TkLogo containerClassName="h-7 w-28" />
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">
+              Supplier Dashboard
+            </h2>
+            <p className="text-[11px] text-muted-foreground">
+              View assigned RFQs and submit quotations
+            </p>
+          </div>
+        </div>
+        <Card className="border-border">
+          <CardContent className="px-4 py-8 text-center">
+            <p className="text-sm text-muted-foreground">
+              Supplier profile not found. Please contact the procurement team.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const assignedRFQIds = state.rfqSuppliers
     .filter((rs) => rs.supplierId === supplier.id)
