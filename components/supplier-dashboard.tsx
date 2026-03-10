@@ -1,5 +1,6 @@
 "use client";
 
+// Supplier Dashboard - All hooks called before conditional returns
 import { useState, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { supabase } from "@/lib/supabaseClient";
