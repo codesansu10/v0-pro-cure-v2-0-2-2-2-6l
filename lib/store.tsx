@@ -1,7 +1,18 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, useRef } from "react";
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from "react";
 import type { AppState, Role, RFQ, Quotation, QCS, Message, RFQSupplier, RFQSupplierStatus, Supplier, Notification } from "./types";
+import {
+  insertRFQ,
+  insertRFQSupplier,
+  insertQuotation,
+  insertQuotationItems,
+  updateRFQSupplierStatus,
+  fetchRFQs,
+  fetchSuppliers,
+  fetchRFQSuppliers,
+  fetchQuotationsWithItems,
+} from "./supabase-data";
 
 const defaultUsers = [
   { id: "USR-001", name: "Max Mueller", role: "engineer" as Role, email: "m.mueller@thyssenkrupp.com" },
@@ -137,11 +148,43 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [currentRole, setCurrentRole] = useState<Role>("engineer");
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [selectedRFQId, setSelectedRFQId] = useState<string | null>(null);
+  const [dataLoaded, setDataLoaded] = useState(false);
   const counterRef = useRef(1);
 
   const generateId = useCallback((prefix: string) => {
     const num = counterRef.current++;
     return `${prefix}-2026-${String(num).padStart(3, "0")}`;
+  }, []);
+
+  // Load data from Supabase on mount
+  useEffect(() => {
+    async function loadFromSupabase() {
+      try {
+        const [rfqs, suppliers, rfqSuppliers] = await Promise.all([
+          fetchRFQs(),
+          fetchSuppliers(),
+          fetchRFQSuppliers(),
+        ]);
+
+        // Load quotations with line items for all RFQs
+        const quotationPromises = rfqs.map((rfq) => fetchQuotationsWithItems(rfq.id));
+        const quotationsArrays = await Promise.all(quotationPromises);
+        const allQuotations = quotationsArrays.flat();
+
+        setState((prev) => ({
+          ...prev,
+          rfqs: rfqs.length > 0 ? rfqs : prev.rfqs,
+          suppliers: suppliers.length > 0 ? suppliers : prev.suppliers,
+          rfqSuppliers: rfqSuppliers.length > 0 ? rfqSuppliers : prev.rfqSuppliers,
+          quotations: allQuotations.length > 0 ? allQuotations : prev.quotations,
+        }));
+        setDataLoaded(true);
+      } catch (err) {
+        console.error("[Supabase] Error loading data:", err);
+        setDataLoaded(true);
+      }
+    }
+    loadFromSupabase();
   }, []);
 
   const getCurrentUser = useCallback(() => {
@@ -152,10 +195,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     (rfq: Omit<RFQ, "id" | "createdAt" | "updatedAt">) => {
       const id = generateId("RFQ");
       const now = new Date().toISOString();
+      const newRFQ: RFQ = { ...rfq, id, createdAt: now, updatedAt: now };
+      
+      // Update local state immediately
       setState((prev) => ({
         ...prev,
-        rfqs: [...prev.rfqs, { ...rfq, id, createdAt: now, updatedAt: now }],
+        rfqs: [...prev.rfqs, newRFQ],
       }));
+      
+      // Persist to Supabase
+      insertRFQ(newRFQ).then((success) => {
+        if (!success) {
+          console.error("[Supabase] Failed to persist RFQ:", id);
+        }
+      });
+
       return id;
     },
     [generateId]
@@ -171,19 +225,27 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const assignSupplier = useCallback((rfqId: string, supplierId: string) => {
+    const assignment: RFQSupplier = {
+      rfqId,
+      supplierId,
+      assignedAt: new Date().toISOString(),
+      status: "RFQ Received",
+      quoted: false,
+    };
+    
     setState((prev) => {
       const exists = prev.rfqSuppliers.find(
         (rs) => rs.rfqId === rfqId && rs.supplierId === supplierId
       );
       if (exists) return prev;
-      const assignment: RFQSupplier = {
-        rfqId,
-        supplierId,
-        assignedAt: new Date().toISOString(),
-        status: "RFQ Received",
-        quoted: false,
-      };
       return { ...prev, rfqSuppliers: [...prev.rfqSuppliers, assignment] };
+    });
+    
+    // Persist to Supabase
+    insertRFQSupplier(assignment).then((success) => {
+      if (!success) {
+        console.error("[Supabase] Failed to persist RFQ supplier assignment");
+      }
     });
   }, []);
 
@@ -196,18 +258,43 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           : rs
       ),
     }));
+    
+    // Sync to Supabase
+    if (updates.status !== undefined || updates.quoted !== undefined) {
+      updateRFQSupplierStatus(rfqId, supplierId, { status: updates.status, quoted: updates.quoted }).then((success) => {
+        if (!success) {
+          console.error("[Supabase] Failed to persist RFQ supplier status");
+        }
+      });
+    }
   }, []);
 
   const addQuotation = useCallback(
     (quotation: Omit<Quotation, "id" | "submittedAt">) => {
       const id = generateId("QOT");
+      const now = new Date().toISOString();
+      const newQuotation: Quotation = { ...quotation, id, submittedAt: now };
+      
+      // Update local state
       setState((prev) => ({
         ...prev,
-        quotations: [
-          ...prev.quotations,
-          { ...quotation, id, submittedAt: new Date().toISOString() },
-        ],
+        quotations: [...prev.quotations, newQuotation],
       }));
+
+      // Persist to Supabase
+      insertQuotation(newQuotation).then((quotationId) => {
+        if (quotationId) {
+          if (newQuotation.lineItems && newQuotation.lineItems.length > 0) {
+            insertQuotationItems(id, newQuotation.lineItems).then((success) => {
+              if (!success) {
+                console.error("[Supabase] Failed to persist quotation items");
+              }
+            });
+          }
+        } else {
+          console.error("[Supabase] Failed to persist quotation:", id);
+        }
+      });
     },
     [generateId]
   );
