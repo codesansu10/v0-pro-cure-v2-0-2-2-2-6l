@@ -123,6 +123,21 @@ CREATE TABLE notifications (
   read BOOLEAN DEFAULT false
 );
 
+-- Supplier access tokens for passwordless supplier portal access
+CREATE TABLE IF NOT EXISTS supplier_tokens (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  token TEXT NOT NULL UNIQUE,
+  supplier_id TEXT NOT NULL,
+  rfq_id TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  expires_at TIMESTAMPTZ NOT NULL,
+  used BOOLEAN DEFAULT false
+);
+
+-- Index for fast token lookups
+CREATE INDEX IF NOT EXISTS idx_supplier_tokens_token ON supplier_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_supplier_tokens_supplier ON supplier_tokens(supplier_id);
+
 -- Enable RLS
 ALTER TABLE suppliers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rfqs ENABLE ROW LEVEL SECURITY;
@@ -132,6 +147,7 @@ ALTER TABLE quotation_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE qcs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE supplier_tokens ENABLE ROW LEVEL SECURITY;
 
 -- Allow all access (for development)
 CREATE POLICY "Allow all" ON suppliers FOR ALL USING (true) WITH CHECK (true);
@@ -142,6 +158,7 @@ CREATE POLICY "Allow all" ON quotation_items FOR ALL USING (true) WITH CHECK (tr
 CREATE POLICY "Allow all" ON qcs FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON messages FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON notifications FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all operations on supplier_tokens" ON supplier_tokens FOR ALL USING (true) WITH CHECK (true);
 
 -- Seed default suppliers
 INSERT INTO suppliers (id, name, company, email, contact_name, rating, role) VALUES

@@ -2,6 +2,7 @@
 
 import { useStore } from "@/lib/store";
 import { triggerHoPDecision } from "@/lib/n8n-webhooks";
+import { generateSupplierToken, storeSupplierToken, buildSupplierAccessUrl } from "@/lib/supplier-tokens";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -129,7 +130,31 @@ export function HopQCSDetailView({ qcsId, onBack }: HopQCSDetailViewProps) {
       });
     }
     // Trigger n8n webhook
-    triggerHoPDecision({ qcsId, rfqId: qcs.rfqId, decision: "approved" }).catch(() => {});
+    const assignedSupplierIdsApprove = state.rfqSuppliers
+      .filter((rs) => rs.rfqId === qcs!.rfqId)
+      .map((rs) => rs.supplierId);
+    const approveSupplierNotifications = assignedSupplierIdsApprove.map((sid) => {
+      const s = state.suppliers.find((sup) => sup.id === sid);
+      const tok = generateSupplierToken(sid, qcs!.rfqId);
+      const accessUrl = buildSupplierAccessUrl(tok);
+      storeSupplierToken(tok, sid, qcs!.rfqId).catch(() => {});
+      return {
+        supplierId: sid,
+        supplierName: s?.name || sid,
+        supplierEmail: s?.email || "",
+        accessUrl,
+        awarded: false,
+      };
+    });
+    triggerHoPDecision({
+      qcsId,
+      rfqId: qcs!.rfqId,
+      decision: "approved",
+      hopEmail: "k.weber@thyssenkrupp.com",
+      procurementEmail: "a.schmidt@thyssenkrupp.com",
+      engineerEmail: "m.mueller@thyssenkrupp.com",
+      supplierNotifications: approveSupplierNotifications,
+    }).catch(() => {});
 
     onBack();
   }
@@ -150,7 +175,32 @@ export function HopQCSDetailView({ qcsId, onBack }: HopQCSDetailViewProps) {
       type: "decision",
     });
     // Trigger n8n webhook
-    triggerHoPDecision({ qcsId, rfqId: qcs.rfqId, decision: "rejected", comment: rejectComment || undefined }).catch(() => {});
+    const assignedSupplierIdsReject = state.rfqSuppliers
+      .filter((rs) => rs.rfqId === qcs!.rfqId)
+      .map((rs) => rs.supplierId);
+    const rejectSupplierNotificationsDetail = assignedSupplierIdsReject.map((sid) => {
+      const s = state.suppliers.find((sup) => sup.id === sid);
+      const tok = generateSupplierToken(sid, qcs!.rfqId);
+      const accessUrl = buildSupplierAccessUrl(tok);
+      storeSupplierToken(tok, sid, qcs!.rfqId).catch(() => {});
+      return {
+        supplierId: sid,
+        supplierName: s?.name || sid,
+        supplierEmail: s?.email || "",
+        accessUrl,
+        awarded: false,
+      };
+    });
+    triggerHoPDecision({
+      qcsId,
+      rfqId: qcs!.rfqId,
+      decision: "rejected",
+      comment: rejectComment || undefined,
+      hopEmail: "k.weber@thyssenkrupp.com",
+      procurementEmail: "a.schmidt@thyssenkrupp.com",
+      engineerEmail: "m.mueller@thyssenkrupp.com",
+      supplierNotifications: rejectSupplierNotificationsDetail,
+    }).catch(() => {});
 
     setRejectDialog(false);
     setRejectComment("");
