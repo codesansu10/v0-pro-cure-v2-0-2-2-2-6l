@@ -28,18 +28,8 @@ import {
   Truck,
   Download,
 } from "lucide-react";
-import type { RFQStatus, RFQSupplierStatus } from "@/lib/types";
+import type { RFQStatus } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
-
-// Supplier status colors for display in procurement view
-const supplierStatusColors: Record<RFQSupplierStatus, string> = {
-  "RFQ Received": "bg-[#00A0E3]",
-  "Quotation Submitted": "bg-emerald-600",
-  "Under Evaluation": "bg-amber-600",
-  "Awarded": "bg-emerald-600",
-  "Not Awarded": "bg-zinc-500",
-  "Withdrawn": "bg-red-600",
-};
 import { TkLogo } from "@/components/tk-logo";
 import {
   Dialog,
@@ -401,6 +391,9 @@ export function ProcurementDashboard() {
                     Suppliers
                   </TableHead>
                   <TableHead className="text-[10px] font-semibold uppercase h-8">
+                    Quote Status
+                  </TableHead>
+                  <TableHead className="text-[10px] font-semibold uppercase h-8">
                     Status
                   </TableHead>
                   <TableHead className="text-[10px] font-semibold uppercase h-8">
@@ -413,7 +406,7 @@ export function ProcurementDashboard() {
                   const rfqSupplierAssignments = state.rfqSuppliers.filter((rs) => rs.rfqId === rfq.id);
                   const assignedSuppliers = rfqSupplierAssignments
                     .map((rs) => state.suppliers.find((s) => s.id === rs.supplierId))
-                    .filter(Boolean);
+                    .filter((s): s is NonNullable<typeof s> => s != null);
                   
                   // Calculate quotes status
                   const quotedCount = rfqSupplierAssignments.filter((rs) => rs.quoted).length;
@@ -443,34 +436,34 @@ export function ProcurementDashboard() {
                       </TableCell>
                       <TableCell className="text-xs">
                         {assignedSuppliers.length > 0 ? (
-                          <div className="flex flex-col gap-1">
-                            {state.rfqSuppliers
-                              .filter((rs) => rs.rfqId === rfq.id)
-                              .map((rs) => {
-                                const sup = state.suppliers.find((s) => s.id === rs.supplierId);
-                                return (
-                                  <div key={rs.supplierId} className="flex items-center gap-1.5">
-                                    <span className="text-[10px]">{sup?.name}</span>
-                                    <Badge className={`${supplierStatusColors[rs.status]} text-white text-[8px] px-1 py-0 border-0`}>
-                                      {rs.quoted ? "Quoted" : "Pending"}
-                                    </Badge>
-                                  </div>
-                                );
-                              })}
+                          <div className="flex flex-col gap-0.5">
+                            {assignedSuppliers.map((sup) => (
+                              <span key={sup.id} className="text-[10px]">{sup.name}</span>
+                            ))}
                           </div>
                         ) : (
                           "—"
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-col gap-1">
-                          <StatusBadge status={effectiveStatus} />
-                          {totalAssigned > 0 && (
-                            <span className="text-[9px] text-muted-foreground">
-                              {quotedCount}/{totalAssigned} quoted
-                            </span>
-                          )}
-                        </div>
+                        {totalAssigned > 0 ? (
+                          <Badge
+                            className={`text-white text-[9px] px-1.5 py-0.5 border-0 ${
+                              allQuoted
+                                ? "bg-emerald-600"
+                                : someQuoted
+                                ? "bg-amber-500"
+                                : "bg-zinc-400"
+                            }`}
+                          >
+                            {quotedCount}/{totalAssigned} quoted
+                          </Badge>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={effectiveStatus} />
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
