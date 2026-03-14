@@ -410,25 +410,25 @@ export function SupplierDashboard() {
         open={!!quoteDialog}
         onOpenChange={() => setQuoteDialog(null)}
       >
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-sm font-semibold">
+        <DialogContent className="max-w-4xl flex flex-col max-h-[90vh] p-0 gap-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border shrink-0">
+            <DialogTitle className="text-base font-semibold">
               Submit Quotation — {quoteDialog}
             </DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-5 overflow-y-auto px-6 py-5 flex-1">
             {/* Line Items Section */}
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold">Price Positions</Label>
+                <Label className="text-sm font-semibold">Price Positions</Label>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-6 gap-1 px-2 text-[10px]"
+                  className="h-9 gap-1.5 px-3 text-sm"
                   onClick={addLineItem}
                 >
-                  <Plus className="h-3 w-3" />
+                  <Plus className="h-4 w-4" />
                   Add Position
                 </Button>
               </div>
@@ -436,45 +436,45 @@ export function SupplierDashboard() {
                 <Table>
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
-                      <TableHead className="text-[10px] font-semibold uppercase h-8 w-36">Item Name</TableHead>
-                      <TableHead className="text-[10px] font-semibold uppercase h-8">Description</TableHead>
-                      <TableHead className="text-[10px] font-semibold uppercase h-8 w-35">Qty</TableHead>
-                      <TableHead className="text-[10px] font-semibold uppercase h-8 w-28">Unit Price</TableHead>
-                      <TableHead className="text-[10px] font-semibold uppercase h-8 w-28">Total</TableHead>
-                      <TableHead className="text-[10px] font-semibold uppercase h-8 w-10"></TableHead>
+                      <TableHead className="text-xs font-semibold uppercase h-10 w-40">Item Name</TableHead>
+                      <TableHead className="text-xs font-semibold uppercase h-10">Description</TableHead>
+                      <TableHead className="text-xs font-semibold uppercase h-10 w-24">Qty</TableHead>
+                      <TableHead className="text-xs font-semibold uppercase h-10 w-32">Unit Price</TableHead>
+                      <TableHead className="text-xs font-semibold uppercase h-10 w-32">Total</TableHead>
+                      <TableHead className="text-xs font-semibold uppercase h-10 w-12"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {lineItems.map((item, index) => (
                       <TableRow key={item.id} className="hover:bg-muted/50">
-                        <TableCell className="p-1">
+                        <TableCell className="p-2">
                           <Input
-                            className="h-7 text-xs"
+                            className="h-9 text-sm"
                             placeholder="Item name"
                             value={item.itemName}
                             onChange={(e) => handleLineItemChange(index, "itemName", e.target.value)}
                           />
                         </TableCell>
-                        <TableCell className="p-1">
+                        <TableCell className="p-2">
                           <Input
-                            className="h-7 text-xs"
+                            className="h-9 text-sm"
                             placeholder="Description"
                             value={item.description}
                             onChange={(e) => handleLineItemChange(index, "description", e.target.value)}
                           />
                         </TableCell>
-                        <TableCell className="p-1">
+                        <TableCell className="p-2">
                           <Input
-                            className="h-7 text-xs"
+                            className="h-9 text-sm"
                             type="number"
                             min="1"
                             value={item.quantity || ""}
                             onChange={(e) => handleLineItemChange(index, "quantity", e.target.value)}
                           />
                         </TableCell>
-                        <TableCell className="p-1">
+                        <TableCell className="p-2">
                           <Input
-                            className="h-7 text-xs"
+                            className="h-9 text-sm"
                             type="number"
                             min="0"
                             step="0.01"
@@ -482,19 +482,19 @@ export function SupplierDashboard() {
                             onChange={(e) => handleLineItemChange(index, "unitPrice", e.target.value)}
                           />
                         </TableCell>
-                        <TableCell className="p-1 text-xs font-medium">
+                        <TableCell className="p-2 text-sm font-medium whitespace-nowrap">
                           {item.totalPrice.toLocaleString("de-DE")} EUR
                         </TableCell>
-                        <TableCell className="p-1">
+                        <TableCell className="p-2">
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
-                            className="h-6 w-6 p-0"
+                            className="h-8 w-8 p-0"
                             onClick={() => removeLineItem(index)}
                             disabled={lineItems.length === 1}
                           >
-                            <Trash2 className="h-3 w-3 text-muted-foreground" />
+                            <Trash2 className="h-4 w-4 text-muted-foreground" />
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -503,18 +503,18 @@ export function SupplierDashboard() {
                 </Table>
               </div>
               <div className="flex justify-end">
-                <div className="bg-muted/50 px-3 py-2 rounded text-xs">
+                <div className="bg-muted/50 px-4 py-2.5 rounded text-sm">
                   <span className="text-muted-foreground">Total Price: </span>
                   <span className="font-bold">{calculatedTotalPrice.toLocaleString("de-DE")} EUR</span>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-xs">Bonus / Malus (EUR)</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-2">
+                <Label className="text-sm">Bonus / Malus (EUR)</Label>
                 <Input
-                  className="h-8 text-xs"
+                  className="h-10 text-sm"
                   type="number"
                   value={quoteForm.bonusMalus || ""}
                   onChange={(e) =>
@@ -525,10 +525,10 @@ export function SupplierDashboard() {
                   }
                 />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-xs">Delivery Time (weeks)</Label>
+              <div className="flex flex-col gap-2">
+                <Label className="text-sm">Delivery Time (weeks)</Label>
                 <Input
-                  className="h-8 text-xs"
+                  className="h-10 text-sm"
                   type="number"
                   value={quoteForm.deliveryTime || ""}
                   onChange={(e) =>
@@ -540,49 +540,49 @@ export function SupplierDashboard() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-xs">Payment Terms</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-2">
+                <Label className="text-sm">Payment Terms</Label>
                 <Select
                   value={quoteForm.paymentTerms}
                   onValueChange={(v) =>
                     setQuoteForm({ ...quoteForm, paymentTerms: v })
                   }
                 >
-                  <SelectTrigger className="h-8 text-xs">
+                  <SelectTrigger className="h-10 text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Net 30" className="text-xs">
+                    <SelectItem value="Net 30" className="text-sm">
                       Net 30
                     </SelectItem>
-                    <SelectItem value="Net 60" className="text-xs">
+                    <SelectItem value="Net 60" className="text-sm">
                       Net 60
                     </SelectItem>
-                    <SelectItem value="Net 90" className="text-xs">
+                    <SelectItem value="Net 90" className="text-sm">
                       Net 90
                     </SelectItem>
-                    <SelectItem value="Prepaid" className="text-xs">
+                    <SelectItem value="Prepaid" className="text-sm">
                       Prepaid
                     </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-xs">Incoterms</Label>
+              <div className="flex flex-col gap-2">
+                <Label className="text-sm">Incoterms</Label>
                 <Select
                   value={quoteForm.incoterms}
                   onValueChange={(v) =>
                     setQuoteForm({ ...quoteForm, incoterms: v })
                   }
                 >
-                  <SelectTrigger className="h-8 text-xs">
+                  <SelectTrigger className="h-10 text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {["EXW", "FCA", "CPT", "CIP", "DAP", "DPU", "DDP", "FOB", "CIF"].map(
                       (term) => (
-                        <SelectItem key={term} value={term} className="text-xs">
+                        <SelectItem key={term} value={term} className="text-sm">
                           {term}
                         </SelectItem>
                       )
@@ -593,34 +593,34 @@ export function SupplierDashboard() {
             </div>
 
             {/* File Upload Section */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-xs">Upload Quotation PDF</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-2">
+                <Label className="text-sm">Upload Quotation PDF</Label>
                 <div className="relative">
                   <Input
                     type="file"
                     accept=".pdf"
-                    className="h-8 text-xs file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:bg-muted file:text-foreground"
+                    className="h-10 text-sm file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:bg-muted file:text-foreground"
                     onChange={(e) => setQuotationPdf(e.target.files?.[0] || null)}
                   />
                   {quotationPdf && (
-                    <p className="text-[10px] text-emerald-600 mt-1">
+                    <p className="text-xs text-emerald-600 mt-1">
                       {quotationPdf.name}
                     </p>
                   )}
                 </div>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-xs">Supporting Documents</Label>
+              <div className="flex flex-col gap-2">
+                <Label className="text-sm">Supporting Documents</Label>
                 <div className="relative">
                   <Input
                     type="file"
                     accept=".pdf,.doc,.docx,.xls,.xlsx"
-                    className="h-8 text-xs file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:bg-muted file:text-foreground"
+                    className="h-10 text-sm file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:bg-muted file:text-foreground"
                     onChange={(e) => setSupportingDocs(e.target.files?.[0] || null)}
                   />
                   {supportingDocs && (
-                    <p className="text-[10px] text-emerald-600 mt-1">
+                    <p className="text-xs text-emerald-600 mt-1">
                       {supportingDocs.name}
                     </p>
                   )}
@@ -628,10 +628,10 @@ export function SupplierDashboard() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs">Comments</Label>
+            <div className="flex flex-col gap-2">
+              <Label className="text-sm">Comments</Label>
               <Textarea
-                className="text-xs min-h-16"
+                className="text-sm min-h-20"
                 value={quoteForm.comments}
                 onChange={(e) =>
                   setQuoteForm({ ...quoteForm, comments: e.target.value })
@@ -640,18 +640,16 @@ export function SupplierDashboard() {
               />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="px-6 py-4 border-t border-border shrink-0">
             <Button
               variant="outline"
-              size="sm"
-              className="text-xs"
+              className="text-sm h-10 px-5"
               onClick={() => setQuoteDialog(null)}
             >
               Cancel
             </Button>
             <Button
-              size="sm"
-              className="bg-[#00A0E3] text-white text-xs hover:bg-[#0090cc]"
+              className="bg-[#00A0E3] text-white text-sm h-10 px-5 hover:bg-[#0090cc]"
               onClick={() => quoteDialog && handleSubmitQuotation(quoteDialog)}
               disabled={calculatedTotalPrice <= 0}
             >
