@@ -416,7 +416,7 @@ export function SupplierDashboard() {
               Submit Quotation — {quoteDialog}
             </DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col gap-5 overflow-y-auto px-6 py-5 flex-1">
+          <div className="flex flex-col gap-5 overflow-y-scroll px-6 py-5 flex-1">
             {/* Line Items Section */}
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
@@ -432,60 +432,68 @@ export function SupplierDashboard() {
                   Add Position
                 </Button>
               </div>
-              <div className="border border-border rounded-lg overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-40">Item Name</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10">Description</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-24">Qty</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-32">Unit Price</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-32">Total</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-12"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+              <div className="border border-border rounded-lg overflow-x-auto">
+                <table className="w-full table-fixed border-collapse text-sm">
+                  <colgroup>
+                    <col style={{ width: "22%" }} />
+                    <col style={{ width: "28%" }} />
+                    <col style={{ width: "12%" }} />
+                    <col style={{ width: "16%" }} />
+                    <col style={{ width: "16%" }} />
+                    <col style={{ width: "6%" }} />
+                  </colgroup>
+                  <thead>
+                    <tr className="border-b border-border bg-muted/30">
+                      <th className="text-xs font-semibold uppercase text-left h-10 px-2 text-muted-foreground">Item Name</th>
+                      <th className="text-xs font-semibold uppercase text-left h-10 px-2 text-muted-foreground">Description</th>
+                      <th className="text-xs font-semibold uppercase text-left h-10 px-2 text-muted-foreground">Qty</th>
+                      <th className="text-xs font-semibold uppercase text-left h-10 px-2 text-muted-foreground">Unit Price</th>
+                      <th className="text-xs font-semibold uppercase text-left h-10 px-2 text-muted-foreground">Total</th>
+                      <th className="h-10 px-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
                     {lineItems.map((item, index) => (
-                      <TableRow key={item.id} className="hover:bg-muted/50">
-                        <TableCell className="p-2">
+                      <tr key={item.id} className="border-b border-border last:border-0 hover:bg-muted/50">
+                        <td className="p-2">
                           <Input
-                            className="h-9 text-sm"
+                            className="h-9 text-sm w-full"
                             placeholder="Item name"
                             value={item.itemName}
                             onChange={(e) => handleLineItemChange(index, "itemName", e.target.value)}
                           />
-                        </TableCell>
-                        <TableCell className="p-2">
+                        </td>
+                        <td className="p-2">
                           <Input
-                            className="h-9 text-sm"
+                            className="h-9 text-sm w-full"
                             placeholder="Description"
                             value={item.description}
                             onChange={(e) => handleLineItemChange(index, "description", e.target.value)}
                           />
-                        </TableCell>
-                        <TableCell className="p-2">
+                        </td>
+                        <td className="p-2">
                           <Input
-                            className="h-9 text-sm"
+                            className="h-9 text-sm w-full"
                             type="number"
                             min="1"
                             value={item.quantity || ""}
                             onChange={(e) => handleLineItemChange(index, "quantity", e.target.value)}
                           />
-                        </TableCell>
-                        <TableCell className="p-2">
+                        </td>
+                        <td className="p-2">
                           <Input
-                            className="h-9 text-sm"
+                            className="h-9 text-sm w-full"
                             type="number"
                             min="0"
                             step="0.01"
                             value={item.unitPrice || ""}
                             onChange={(e) => handleLineItemChange(index, "unitPrice", e.target.value)}
                           />
-                        </TableCell>
-                        <TableCell className="p-2 text-sm font-medium whitespace-nowrap">
+                        </td>
+                        <td className="p-2 text-sm font-medium whitespace-nowrap">
                           {item.totalPrice.toLocaleString("de-DE")} EUR
-                        </TableCell>
-                        <TableCell className="p-2">
+                        </td>
+                        <td className="p-2">
                           <Button
                             type="button"
                             variant="ghost"
@@ -496,11 +504,11 @@ export function SupplierDashboard() {
                           >
                             <Trash2 className="h-4 w-4 text-muted-foreground" />
                           </Button>
-                        </TableCell>
-                      </TableRow>
+                        </td>
+                      </tr>
                     ))}
-                  </TableBody>
-                </Table>
+                  </tbody>
+                </table>
               </div>
               <div className="flex justify-end">
                 <div className="bg-muted/50 px-4 py-2.5 rounded text-sm">
