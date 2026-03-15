@@ -95,9 +95,9 @@ export function RFQForm({ open, onClose, editId }: RFQFormProps) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[95vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-sm font-semibold">
+          <DialogTitle className="text-base font-semibold">
             {editId ? `Edit RFQ — ${editId}` : "Create New RFQ"}
           </DialogTitle>
         </DialogHeader>
@@ -107,38 +107,38 @@ export function RFQForm({ open, onClose, editId }: RFQFormProps) {
             {warnings.map((w, i) => (
               <Badge
                 key={i}
-                className={`${w.color} text-white text-[10px] border-0`}
+                className={`${w.color} text-white text-xs border-0`}
               >
-                <w.icon className="mr-1 h-3 w-3" />
+                <w.icon className="mr-1 h-3.5 w-3.5" />
                 {w.text}
               </Badge>
             ))}
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs">Project</Label>
+        <div className="grid grid-cols-2 gap-5">
+          <div className="flex flex-col gap-2">
+            <Label className="text-sm">Project</Label>
             <Input
-              className="h-8 text-xs"
+              className="h-9 text-sm"
               value={form.project}
               onChange={(e) => setForm({ ...form, project: e.target.value })}
               placeholder="e.g. Steel Plant Modernization"
             />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs">Component</Label>
+          <div className="flex flex-col gap-2">
+            <Label className="text-sm">Component</Label>
             <Input
-              className="h-8 text-xs"
+              className="h-9 text-sm"
               value={form.component}
               onChange={(e) => setForm({ ...form, component: e.target.value })}
               placeholder="e.g. Roller Bearing Assembly"
             />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs">Quantity</Label>
+          <div className="flex flex-col gap-2">
+            <Label className="text-sm">Quantity</Label>
             <Input
-              className="h-8 text-xs"
+              className="h-9 text-sm"
               type="number"
               value={form.quantity || ""}
               onChange={(e) =>
@@ -146,10 +146,10 @@ export function RFQForm({ open, onClose, editId }: RFQFormProps) {
               }
             />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs">Budget (EUR)</Label>
+          <div className="flex flex-col gap-2">
+            <Label className="text-sm">Budget (EUR)</Label>
             <Input
-              className="h-8 text-xs"
+              className="h-9 text-sm"
               type="number"
               value={form.budget || ""}
               onChange={(e) =>
@@ -157,10 +157,10 @@ export function RFQForm({ open, onClose, editId }: RFQFormProps) {
               }
             />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs">Delivery Time (weeks)</Label>
+          <div className="flex flex-col gap-2">
+            <Label className="text-sm">Delivery Time (weeks)</Label>
             <Input
-              className="h-8 text-xs"
+              className="h-9 text-sm"
               type="number"
               value={form.deliveryTime || ""}
               onChange={(e) =>
@@ -171,28 +171,28 @@ export function RFQForm({ open, onClose, editId }: RFQFormProps) {
               }
             />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs">Plant</Label>
+          <div className="flex flex-col gap-2">
+            <Label className="text-sm">Plant</Label>
             <Input
-              className="h-8 text-xs"
+              className="h-9 text-sm"
               value={form.plant}
               onChange={(e) => setForm({ ...form, plant: e.target.value })}
               placeholder="e.g. Duisburg"
             />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs">PSP Element</Label>
+          <div className="flex flex-col gap-2">
+            <Label className="text-sm">PSP Element</Label>
             <Input
-              className="h-8 text-xs"
+              className="h-9 text-sm"
               value={form.pspElement}
               onChange={(e) => setForm({ ...form, pspElement: e.target.value })}
               placeholder="e.g. PSP-2026-0042"
             />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs">Technical Contact</Label>
+          <div className="flex flex-col gap-2">
+            <Label className="text-sm">Technical Contact</Label>
             <Input
-              className="h-8 text-xs"
+              className="h-9 text-sm"
               value={form.technicalContact}
               onChange={(e) =>
                 setForm({ ...form, technicalContact: e.target.value })
@@ -200,25 +200,25 @@ export function RFQForm({ open, onClose, editId }: RFQFormProps) {
               placeholder="e.g. Dr. Fischer"
             />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs">Type of Request</Label>
+          <div className="flex flex-col gap-2">
+            <Label className="text-sm">Type of Request</Label>
             <Select
               value={form.requestType}
               onValueChange={(v) =>
                 setForm({ ...form, requestType: v as RequestType })
               }
             >
-              <SelectTrigger className="h-8 text-xs">
+              <SelectTrigger className="h-9 text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Manufacturing" className="text-xs">
+                <SelectItem value="Manufacturing" className="text-sm">
                   Manufacturing
                 </SelectItem>
-                <SelectItem value="Delivery" className="text-xs">
+                <SelectItem value="Delivery" className="text-sm">
                   Delivery
                 </SelectItem>
-                <SelectItem value="Service" className="text-xs">
+                <SelectItem value="Service" className="text-sm">
                   Service
                 </SelectItem>
               </SelectContent>
@@ -232,26 +232,26 @@ export function RFQForm({ open, onClose, editId }: RFQFormProps) {
                   setForm({ ...form, onSiteVisitRequired: v })
                 }
               />
-              <Label className="text-xs">On-site Visit Required</Label>
+              <Label className="text-sm">On-site Visit Required</Label>
             </div>
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={onClose} className="text-xs">
+          <Button variant="outline" size="sm" onClick={onClose} className="text-sm">
             Cancel
           </Button>
           <Button
             size="sm"
             variant="outline"
-            className="text-xs"
+            className="text-sm"
             onClick={() => handleSave("Draft")}
           >
             Save as Draft
           </Button>
           <Button
             size="sm"
-            className="bg-[#00A0E3] text-white text-xs hover:bg-[#0090cc]"
+            className="bg-[#00A0E3] text-white text-sm hover:bg-[#0090cc]"
             onClick={() => handleSave("Submitted")}
           >
             Submit RFQ
