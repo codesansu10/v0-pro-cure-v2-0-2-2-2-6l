@@ -414,16 +414,16 @@ export function SupplierDashboard() {
                   Add Position
                 </Button>
               </div>
-              <div className="border border-border rounded-lg overflow-hidden">
-                <Table>
+              <div className="border border-border rounded-lg overflow-x-auto">
+                <Table className="min-w-[700px]">
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-40">Item Name</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10">Description</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-24">Qty</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-32">Unit Price</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-32">Total</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-12"></TableHead>
+                      <TableHead className="text-xs font-semibold uppercase h-11 w-48">Item Name</TableHead>
+                      <TableHead className="text-xs font-semibold uppercase h-11 min-w-[200px]">Description</TableHead>
+                      <TableHead className="text-xs font-semibold uppercase h-11 w-24">Qty</TableHead>
+                      <TableHead className="text-xs font-semibold uppercase h-11 w-44">Unit Price (EUR)</TableHead>
+                      <TableHead className="text-xs font-semibold uppercase h-11 w-48 whitespace-nowrap">Total (EUR)</TableHead>
+                      <TableHead className="text-xs font-semibold uppercase h-11 w-12"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -431,7 +431,7 @@ export function SupplierDashboard() {
                       <TableRow key={item.id} className="hover:bg-muted/50">
                         <TableCell className="p-2">
                           <Input
-                            className="h-9 text-sm"
+                            className="h-10 text-sm min-w-[160px]"
                             placeholder="Item name"
                             value={item.itemName}
                             onChange={(e) => handleLineItemChange(index, "itemName", e.target.value)}
@@ -439,7 +439,7 @@ export function SupplierDashboard() {
                         </TableCell>
                         <TableCell className="p-2">
                           <Input
-                            className="h-9 text-sm"
+                            className="h-10 text-sm min-w-[180px]"
                             placeholder="Description"
                             value={item.description}
                             onChange={(e) => handleLineItemChange(index, "description", e.target.value)}
@@ -447,7 +447,7 @@ export function SupplierDashboard() {
                         </TableCell>
                         <TableCell className="p-2">
                           <Input
-                            className="h-9 text-sm"
+                            className="h-10 text-sm w-20"
                             type="number"
                             min="1"
                             value={item.quantity || ""}
@@ -456,7 +456,7 @@ export function SupplierDashboard() {
                         </TableCell>
                         <TableCell className="p-2">
                           <Input
-                            className="h-9 text-sm"
+                            className="h-10 text-sm min-w-[140px]"
                             type="number"
                             min="0"
                             step="0.01"
@@ -464,7 +464,7 @@ export function SupplierDashboard() {
                             onChange={(e) => handleLineItemChange(index, "unitPrice", e.target.value)}
                           />
                         </TableCell>
-                        <TableCell className="p-2 text-sm font-medium whitespace-nowrap">
+                        <TableCell className="p-2 text-sm font-medium whitespace-nowrap min-w-[160px]">
                           {item.totalPrice.toLocaleString("de-DE")} EUR
                         </TableCell>
                         <TableCell className="p-2">
