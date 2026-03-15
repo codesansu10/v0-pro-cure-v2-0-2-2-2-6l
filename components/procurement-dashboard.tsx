@@ -391,7 +391,7 @@ export function ProcurementDashboard() {
                     Suppliers
                   </TableHead>
                   <TableHead className="text-[10px] font-semibold uppercase h-8">
-                    Quote Status
+                    Progress
                   </TableHead>
                   <TableHead className="text-[10px] font-semibold uppercase h-8">
                     Status
@@ -407,6 +407,7 @@ export function ProcurementDashboard() {
                   const assignedSuppliers = rfqSupplierAssignments
                     .map((rs) => state.suppliers.find((s) => s.id === rs.supplierId))
                     .filter((s): s is NonNullable<typeof s> => s != null);
+                  const supplierMap = new Map(assignedSuppliers.map((s) => [s.id, s]));
                   
                   // Calculate quotes status
                   const quotedCount = rfqSupplierAssignments.filter((rs) => rs.quoted).length;
@@ -447,17 +448,36 @@ export function ProcurementDashboard() {
                       </TableCell>
                       <TableCell>
                         {totalAssigned > 0 ? (
-                          <Badge
-                            className={`text-white text-[9px] px-1.5 py-0.5 border-0 ${
-                              allQuoted
-                                ? "bg-emerald-600"
-                                : someQuoted
-                                ? "bg-amber-500"
-                                : "bg-zinc-400"
-                            }`}
-                          >
-                            {quotedCount}/{totalAssigned} quoted
-                          </Badge>
+                          <div className="flex flex-col gap-1">
+                            <div className="flex flex-col gap-0.5">
+                              {rfqSupplierAssignments.map((rs) => {
+                                const sup = supplierMap.get(rs.supplierId);
+                                if (!sup) return null;
+                                return (
+                                  <div key={rs.supplierId} className="flex items-center gap-1">
+                                    <Badge
+                                      className={`text-white text-[9px] px-1.5 py-0 border-0 ${
+                                        rs.quoted ? "bg-emerald-600" : "bg-zinc-400"
+                                      }`}
+                                    >
+                                      {rs.quoted ? "Quoted" : "Pending"}
+                                    </Badge>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            <Badge
+                              className={`text-white text-[9px] px-1.5 py-0.5 border-0 w-fit ${
+                                allQuoted
+                                  ? "bg-emerald-600"
+                                  : someQuoted
+                                  ? "bg-amber-500"
+                                  : "bg-zinc-400"
+                              }`}
+                            >
+                              {quotedCount}/{totalAssigned} quoted
+                            </Badge>
+                          </div>
                         ) : (
                           <span className="text-[10px] text-muted-foreground">—</span>
                         )}
