@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from "react";
+
 import type { AppState, Role, RFQ, Quotation, QCS, Message, RFQSupplier, RFQSupplierStatus, Supplier, Notification } from "./types";
 import {
   insertRFQ,
@@ -24,7 +25,6 @@ import {
   updateNotificationRead,
   updateRFQFields,
 } from "./supabase-data";
-import { setupRealtimeSubscriptions } from "./realtime";
 
 const defaultUsers = [
   { id: "USR-001", name: "Max Mueller", role: "engineer" as Role, email: "m.mueller@thyssenkrupp.com" },
@@ -196,7 +196,6 @@ interface StoreContextType {
   getCurrentUser: () => typeof defaultUsers[0];
   selectedRFQId: string | null;
   setSelectedRFQId: (id: string | null) => void;
-  realtimeConnected: boolean;
 }
 
 const StoreContext = createContext<StoreContextType | null>(null);
@@ -207,10 +206,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [selectedRFQId, setSelectedRFQId] = useState<string | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
-  const [realtimeConnected, setRealtimeConnected] = useState(false);
   const counterRef = useRef(1);
-  // Track realtime connection in a ref so the polling fallback doesn't need it as a dep
-  const realtimeConnectedRef = useRef(false);
 
   const generateId = useCallback((prefix: string) => {
     const num = counterRef.current++;
@@ -277,125 +273,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     }
     loadFromSupabase();
-  }, []);
-
-  // Set up Supabase Realtime subscriptions for live updates across all concurrent users
-  useEffect(() => {
-    const cleanup = setupRealtimeSubscriptions({
-      onRFQInsert: (rfq) => {
-        setState((prev) => {
-          if (prev.rfqs.some((r) => r.id === rfq.id)) return prev;
-          return { ...prev, rfqs: [rfq, ...prev.rfqs] };
-        });
-      },
-      onRFQUpdate: (rfq) => {
-        setState((prev) => ({
-          ...prev,
-          rfqs: prev.rfqs.map((r) => (r.id === rfq.id ? rfq : r)),
-        }));
-      },
-      onRFQSupplierInsert: (assignment) => {
-        setState((prev) => {
-          if (prev.rfqSuppliers.some((rs) => rs.rfqId === assignment.rfqId && rs.supplierId === assignment.supplierId)) return prev;
-          return { ...prev, rfqSuppliers: [...prev.rfqSuppliers, assignment] };
-        });
-      },
-      onRFQSupplierUpdate: (assignment) => {
-        setState((prev) => ({
-          ...prev,
-          rfqSuppliers: prev.rfqSuppliers.map((rs) =>
-            rs.rfqId === assignment.rfqId && rs.supplierId === assignment.supplierId ? assignment : rs
-          ),
-        }));
-      },
-      onQuotationInsert: (quotation) => {
-        setState((prev) => {
-          if (prev.quotations.some((q) => q.id === quotation.id)) return prev;
-          return { ...prev, quotations: [...prev.quotations, quotation] };
-        });
-      },
-      onQuotationUpdate: (quotation) => {
-        setState((prev) => ({
-          ...prev,
-          // Preserve existing lineItems since the UPDATE event doesn't include them
-          quotations: prev.quotations.map((q) => (q.id === quotation.id ? { ...quotation, lineItems: q.lineItems } : q)),
-        }));
-      },
-      onQuotationItemsChange: (quotationId, items) => {
-        setState((prev) => ({
-          ...prev,
-          quotations: prev.quotations.map((q) =>
-            q.id === quotationId ? { ...q, lineItems: items } : q
-          ),
-        }));
-      },
-      onQCSInsert: (qcs) => {
-        setState((prev) => {
-          if (prev.qcs.some((q) => q.id === qcs.id)) return prev;
-          return { ...prev, qcs: [qcs, ...prev.qcs] };
-        });
-      },
-      onQCSUpdate: (qcs) => {
-        setState((prev) => ({
-          ...prev,
-          qcs: prev.qcs.map((q) => (q.id === qcs.id ? qcs : q)),
-        }));
-      },
-      onMessageInsert: (msg) => {
-        setState((prev) => {
-          if (prev.messages.some((m) => m.id === msg.id)) return prev;
-          return { ...prev, messages: [...prev.messages, msg] };
-        });
-      },
-      onNotificationInsert: (notif) => {
-        setState((prev) => {
-          if (prev.notifications.some((n) => n.id === notif.id)) return prev;
-          return { ...prev, notifications: [notif, ...prev.notifications] };
-        });
-      },
-      onNotificationUpdate: (notif) => {
-        setState((prev) => ({
-          ...prev,
-          notifications: prev.notifications.map((n) => (n.id === notif.id ? notif : n)),
-        }));
-      },
-      onConnectionChange: (connected) => {
-        realtimeConnectedRef.current = connected;
-        setRealtimeConnected(connected);
-      },
-    });
-    return cleanup;
-  }, []);
-
-  // Auto-polling fallback: refresh all data every 30 s when realtime is disconnected
-  useEffect(() => {
-    const poll = async () => {
-      if (realtimeConnectedRef.current) return; // Skip if realtime is active
-      try {
-        const [rfqs, rfqSuppliers, quotations, qcsData, messagesData, notificationsData] = await Promise.all([
-          fetchRFQs(),
-          fetchRFQSuppliers(),
-          fetchAllQuotationsWithItems(),
-          fetchQCS(),
-          fetchMessages(),
-          fetchNotifications(),
-        ]);
-        setState((prev) => ({
-          ...prev,
-          rfqs: rfqs.length > 0 ? rfqs : prev.rfqs,
-          rfqSuppliers: rfqSuppliers.length > 0 ? rfqSuppliers : prev.rfqSuppliers,
-          quotations: quotations.length > 0 ? quotations : prev.quotations,
-          qcs: qcsData.length > 0 ? qcsData : prev.qcs,
-          messages: messagesData.length > 0 ? messagesData : prev.messages,
-          notifications: notificationsData.length > 0 ? notificationsData : prev.notifications,
-        }));
-      } catch (err) {
-        console.error("[Poll] Error refreshing data:", err);
-      }
-    };
-
-    const interval = setInterval(poll, 30000);
-    return () => clearInterval(interval);
   }, []);
 
   const getCurrentUser = useCallback(() => {
@@ -705,7 +582,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         getCurrentUser,
         selectedRFQId,
         setSelectedRFQId,
-        realtimeConnected,
       }}
     >
       {children}

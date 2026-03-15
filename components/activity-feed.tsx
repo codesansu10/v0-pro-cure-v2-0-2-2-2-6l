@@ -35,7 +35,7 @@ const typeColors: Record<NotificationType, string> = {
 };
 
 export function ActivityFeed({ maxItems = 10 }: { maxItems?: number }) {
-  const { state, currentRole, realtimeConnected } = useStore();
+  const { state, currentRole } = useStore();
 
   // Show all notifications visible to the current role, sorted newest first
   const visibleNotifs = state.notifications
@@ -57,17 +57,7 @@ export function ActivityFeed({ maxItems = 10 }: { maxItems?: number }) {
         <CardTitle className="flex items-center justify-between text-xs font-semibold">
           <div className="flex items-center gap-2">
             <Activity className="h-3.5 w-3.5" />
-            Live Activity Feed
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span
-              className={`h-2 w-2 rounded-full ${
-                realtimeConnected ? "bg-emerald-500 animate-pulse" : "bg-zinc-400"
-              }`}
-            />
-            <span className="text-[10px] font-normal text-muted-foreground">
-              {realtimeConnected ? "Live" : "Offline"}
-            </span>
+            Activity Feed
           </div>
         </CardTitle>
       </CardHeader>

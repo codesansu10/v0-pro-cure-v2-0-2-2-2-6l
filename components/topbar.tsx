@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useStore } from "@/lib/store";
 import type { Role } from "@/lib/types";
-import { Bell, User, Wifi, WifiOff } from "lucide-react";
+import { Bell, User } from "lucide-react";
 import { TkLogo } from "@/components/tk-logo";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import { Button } from "@/components/ui/button";
@@ -39,7 +39,7 @@ const roleColors: Record<Role, string> = {
 };
 
 export function Topbar() {
-  const { currentRole, setCurrentRole, getCurrentUser, getUnreadCount, realtimeConnected } = useStore();
+  const { currentRole, setCurrentRole, getCurrentUser, getUnreadCount } = useStore();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const user = getCurrentUser();
   const unreadCount = getUnreadCount();
@@ -60,25 +60,6 @@ export function Topbar() {
       </div>
 
       <div className="flex items-center gap-4">
-        {/* Real-time connection indicator */}
-        <div
-          className="flex items-center gap-1.5"
-          title={realtimeConnected ? "Real-time updates active" : "Real-time offline"}
-        >
-          {realtimeConnected ? (
-            <Wifi className="h-3.5 w-3.5 text-emerald-500" />
-          ) : (
-            <WifiOff className="h-3.5 w-3.5 text-zinc-400" />
-          )}
-          <span
-            className={`text-[10px] font-medium ${
-              realtimeConnected ? "text-emerald-500" : "text-zinc-400"
-            }`}
-          >
-            {realtimeConnected ? "Live" : "Offline"}
-          </span>
-        </div>
-
         <Select
           value={currentRole}
           onValueChange={(v) => setCurrentRole(v as Role)}
