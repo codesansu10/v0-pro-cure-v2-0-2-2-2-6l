@@ -429,15 +429,23 @@ export function SupplierDashboard() {
                 </Button>
               </div>
               <div className="border border-border rounded-lg overflow-hidden">
-                <Table>
+                <Table style={{ tableLayout: "fixed", width: "100%" }}>
+                  <colgroup>
+                    <col style={{ width: "25%" }} />
+                    <col style={{ width: "30%" }} />
+                    <col style={{ width: "10%" }} />
+                    <col style={{ width: "17%" }} />
+                    <col style={{ width: "13%" }} />
+                    <col style={{ width: "5%" }} />
+                  </colgroup>
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-40">Item Name</TableHead>
+                      <TableHead className="text-xs font-semibold uppercase h-10">Item Name</TableHead>
                       <TableHead className="text-xs font-semibold uppercase h-10">Description</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-24">Qty</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-32">Unit Price</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-32">Total</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-12"></TableHead>
+                      <TableHead className="text-xs font-semibold uppercase h-10">Qty</TableHead>
+                      <TableHead className="text-xs font-semibold uppercase h-10">Unit Price</TableHead>
+                      <TableHead className="text-xs font-semibold uppercase h-10">Total</TableHead>
+                      <TableHead className="text-xs font-semibold uppercase h-10"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -445,7 +453,7 @@ export function SupplierDashboard() {
                       <TableRow key={item.id} className="hover:bg-muted/50">
                         <TableCell className="p-2">
                           <Input
-                            className="h-9 text-sm"
+                            className="h-9 text-sm w-full"
                             placeholder="Item name"
                             value={item.itemName}
                             onChange={(e) => handleLineItemChange(index, "itemName", e.target.value)}
@@ -453,7 +461,7 @@ export function SupplierDashboard() {
                         </TableCell>
                         <TableCell className="p-2">
                           <Input
-                            className="h-9 text-sm"
+                            className="h-9 text-sm w-full"
                             placeholder="Description"
                             value={item.description}
                             onChange={(e) => handleLineItemChange(index, "description", e.target.value)}
@@ -461,7 +469,7 @@ export function SupplierDashboard() {
                         </TableCell>
                         <TableCell className="p-2">
                           <Input
-                            className="h-9 text-sm"
+                            className="h-9 text-sm w-full"
                             type="number"
                             min="1"
                             value={item.quantity || ""}
@@ -470,7 +478,7 @@ export function SupplierDashboard() {
                         </TableCell>
                         <TableCell className="p-2">
                           <Input
-                            className="h-9 text-sm"
+                            className="h-9 text-sm w-full"
                             type="number"
                             min="0"
                             step="0.01"
@@ -478,7 +486,7 @@ export function SupplierDashboard() {
                             onChange={(e) => handleLineItemChange(index, "unitPrice", e.target.value)}
                           />
                         </TableCell>
-                        <TableCell className="p-2 text-sm font-medium whitespace-nowrap">
+                        <TableCell className="p-2 text-sm font-medium overflow-hidden text-ellipsis whitespace-nowrap">
                           {item.totalPrice.toLocaleString("de-DE")} EUR
                         </TableCell>
                         <TableCell className="p-2">
