@@ -239,6 +239,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const quotationsArrays = await Promise.all(quotationPromises);
         const allQuotations = quotationsArrays.flat();
 
+        // Update the ID counter to be past the maximum counter found in any loaded data,
+        // preventing unique-constraint violations when new records are inserted into Supabase.
+        const extractNum = (id: string): number => {
+          const m = id.match(/-(\d+)$/);
+          return m ? parseInt(m[1], 10) : 0;
+        };
+        const allLoadedIds = [
+          ...rfqs.map((r) => r.id),
+          ...allQuotations.map((q) => q.id),
+          ...qcsData.map((q) => q.id),
+          ...messagesData.map((m) => m.id),
+          ...notificationsData.map((n) => n.id),
+        ];
+        const maxNum = allLoadedIds.reduce((m, id) => Math.max(m, extractNum(id)), 0);
+        if (maxNum >= counterRef.current) {
+          counterRef.current = maxNum + 1;
+        }
+
         setState((prev) => {
           // Merge Supabase suppliers with defaults — preserve role and other detailed fields
           let mergedSuppliers = prev.suppliers;
