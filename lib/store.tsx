@@ -2,7 +2,6 @@
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from "react";
 import type { AppState, Role, RFQ, Quotation, QCS, Message, RFQSupplier, RFQSupplierStatus, Supplier, Notification } from "./types";
-import { triggerRFQSubmitted, triggerQuotationSubmitted } from "./n8n-webhooks";
 import {
   insertRFQ,
   insertRFQSupplier,
@@ -455,23 +454,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           rfqs: prev.rfqs.some((r) => r.id === id) ? prev.rfqs : [...prev.rfqs, newRFQ],
         }));
 
-        // 3. Trigger n8n webhook AFTER DB confirmation
-        if (success && rfq.status === "Submitted") {
-          const engineer = defaultUsers.find((u) => u.id === rfq.createdBy);
-          try {
-            await triggerRFQSubmitted({
-              rfqId: id,
-              project: rfq.project,
-              component: rfq.component,
-              budget: rfq.budget,
-              engineerName: engineer?.name ?? "Unknown Engineer",
-              engineerEmail: engineer?.email ?? "m.mueller@thyssenkrupp.com",
-              procurementEmail: "a.schmidt@thyssenkrupp.com",
-            });
-          } catch (err) {
-            console.error("[n8n] Failed to trigger RFQ webhook:", err);
-          }
-        }
+
       })();
 
       return id;
@@ -579,23 +562,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           ),
         }));
 
-        // 5. Trigger n8n webhook AFTER DB confirmation
-        if (quotationId) {
-          const supplier = defaultSuppliers.find((s) => s.id === newQuotation.supplierId);
-          try {
-            await triggerQuotationSubmitted({
-              rfqId: newQuotation.rfqId,
-              supplierId: newQuotation.supplierId,
-              supplierName: supplier?.name ?? "Unknown Supplier",
-              supplierEmail: supplier?.email ?? "",
-              totalPrice: newQuotation.totalPrice,
-              procurementEmail: "a.schmidt@thyssenkrupp.com",
-              engineerEmail: "m.mueller@thyssenkrupp.com",
-            });
-          } catch (err) {
-            console.error("[n8n] Failed to trigger quotation webhook:", err);
-          }
-        }
+
       })();
     },
     [generateId]
