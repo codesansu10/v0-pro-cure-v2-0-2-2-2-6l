@@ -90,12 +90,12 @@ export function HopQCSDetailView({ qcsId, onBack }: HopQCSDetailViewProps) {
       status: "approved",
       hopDecisionAt: new Date().toISOString(),
     });
-    updateRFQ(qcs.rfqId, { status: "Closed" });
+    updateRFQ(qcs!.rfqId, { status: "Closed" });
 
     // Notify procurement
     addNotification({
       role: "procurement",
-      rfqId: qcs.rfqId,
+      rfqId: qcs!.rfqId,
       qcsId,
       title: "QCS Approved",
       message: `QCS ${qcsId} for ${rfq?.project || "Unknown"} has been approved by Head of Procurement.`,
@@ -107,24 +107,24 @@ export function HopQCSDetailView({ qcsId, onBack }: HopQCSDetailViewProps) {
       addNotification({
         role: "engineer",
         userId: rfq.createdBy,
-        rfqId: qcs.rfqId,
+        rfqId: qcs!.rfqId,
         title: "RFQ Decision Update",
-        message: `Your RFQ ${qcs.rfqId} for ${rfq.project} - ${rfq.component} has been approved and closed.`,
+        message: `Your RFQ ${qcs!.rfqId} for ${rfq.project} - ${rfq.component} has been approved and closed.`,
         type: "decision",
       });
 
       // Notify assigned suppliers
       const assignedSupplierIds = state.rfqSuppliers
-        .filter((rs) => rs.rfqId === qcs.rfqId)
+        .filter((rs) => rs.rfqId === qcs!.rfqId)
         .map((rs) => rs.supplierId);
 
       assignedSupplierIds.forEach((supplierId) => {
         addNotification({
           role: "supplier",
           supplierId,
-          rfqId: qcs.rfqId,
+          rfqId: qcs!.rfqId,
           title: "Award Outcome",
-          message: `A decision has been made for RFQ ${qcs.rfqId} - ${rfq.project}. Please check the results.`,
+          message: `A decision has been made for RFQ ${qcs!.rfqId} - ${rfq.project}. Please check the results.`,
           type: "decision",
         });
       });
@@ -168,7 +168,7 @@ export function HopQCSDetailView({ qcsId, onBack }: HopQCSDetailViewProps) {
 
     addNotification({
       role: "procurement",
-      rfqId: qcs.rfqId,
+      rfqId: qcs!.rfqId,
       qcsId,
       title: "QCS Rejected",
       message: `QCS ${qcsId} for ${rfq?.project || "Unknown"} has been rejected by Head of Procurement.${rejectComment ? ` Comment: "${rejectComment}"` : ""}`,
@@ -212,11 +212,11 @@ export function HopQCSDetailView({ qcsId, onBack }: HopQCSDetailViewProps) {
       status: "needs_negotiation",
       hopDecisionAt: new Date().toISOString(),
     });
-    updateRFQ(qcs.rfqId, { status: "In Negotiation" });
+    updateRFQ(qcs!.rfqId, { status: "In Negotiation" });
 
     addNotification({
       role: "procurement",
-      rfqId: qcs.rfqId,
+      rfqId: qcs!.rfqId,
       qcsId,
       title: "QCS Needs Negotiation",
       message: `QCS ${qcsId} for ${rfq?.project || "Unknown"} has been sent back by Head of Procurement for further negotiation.`,
@@ -228,10 +228,10 @@ export function HopQCSDetailView({ qcsId, onBack }: HopQCSDetailViewProps) {
 
   function exportToCSV() {
     let csv = "Quote Comparison Sheet\n";
-    csv += `Buyer,${qcs.buyer}\n`;
-    csv += `Project,${qcs.project}\n`;
-    csv += `PSP Element,${qcs.pspElement}\n`;
-    csv += `Budget,${qcs.budget}\n\n`;
+    csv += `Buyer,${qcs!.buyer}\n`;
+    csv += `Project,${qcs!.project}\n`;
+    csv += `PSP Element,${qcs!.pspElement}\n`;
+    csv += `Budget,${qcs!.budget}\n\n`;
 
     csv += "Criteria," + suppliers.map((s) => s.supplier?.name || "Unknown").join(",") + "\n";
     csv += "Rating," + suppliers.map((s) => s.supplier?.rating || "-").join(",") + "\n";

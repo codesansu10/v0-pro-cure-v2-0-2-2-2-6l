@@ -38,8 +38,8 @@ const emptySupplierForm = {
   contactPerson: "",
   email: "",
   commodityFocus: "",
-  status: "Pending" as const,
-  rating: "B" as const,
+  status: "Pending" as "Approved" | "Pending",
+  rating: "B" as "A" | "B" | "C",
 };
 
 export function SuppliersPage() {
