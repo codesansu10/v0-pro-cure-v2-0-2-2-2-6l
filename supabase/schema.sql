@@ -1,4 +1,6 @@
 -- Drop existing tables if they exist (for clean setup)
+DROP TABLE IF EXISTS rfq_supplier_recommendations CASCADE;
+DROP TABLE IF EXISTS supplier_certifications CASCADE;
 DROP TABLE IF EXISTS notifications CASCADE;
 DROP TABLE IF EXISTS messages CASCADE;
 DROP TABLE IF EXISTS qcs CASCADE;
@@ -16,7 +18,20 @@ CREATE TABLE suppliers (
   email TEXT,
   contact_name TEXT,
   rating TEXT DEFAULT 'B',
-  role TEXT NOT NULL
+  role TEXT NOT NULL,
+  -- NLP Recommendation Engine extended attributes
+  scc_codes TEXT[],                   -- Standard Commodity Codes
+  material_groups TEXT[],             -- Material group tags
+  country TEXT,                       -- Supplier country
+  segment TEXT DEFAULT 'approved',    -- preferred | approved | conditional | new
+  purchasing_block BOOLEAN DEFAULT false,
+  -- Performance scoring
+  sgp_total_score NUMERIC DEFAULT 70,
+  supplier_evaluation_score NUMERIC DEFAULT 70,
+  sustainability_audit_score NUMERIC DEFAULT 70,
+  -- Risk / compliance
+  risk_assessment_result TEXT,        -- A | B | C
+  credit_check_score NUMERIC DEFAULT 70
 );
 
 -- RFQs table  
@@ -138,6 +153,37 @@ CREATE TABLE IF NOT EXISTS supplier_tokens (
 CREATE INDEX IF NOT EXISTS idx_supplier_tokens_token ON supplier_tokens(token);
 CREATE INDEX IF NOT EXISTS idx_supplier_tokens_supplier ON supplier_tokens(supplier_id);
 
+-- ─── NLP Supplier Recommendation tables ──────────────────────────────────────
+
+-- Stores AI-generated supplier recommendations per RFQ
+CREATE TABLE rfq_supplier_recommendations (
+  id BIGSERIAL PRIMARY KEY,
+  rfq_id TEXT NOT NULL,
+  supplier_id TEXT NOT NULL,
+  rank INTEGER NOT NULL,
+  final_score NUMERIC NOT NULL,
+  enhanced_relevance_score NUMERIC,
+  risk_compliance_score NUMERIC,
+  performance_score NUMERIC,
+  nlp_similarity_score NUMERIC,
+  eligibility_reason TEXT DEFAULT 'Eligible',
+  soft_warnings TEXT,         -- semicolon-separated list
+  reasons TEXT,               -- pipe-separated list
+  generated_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE (rfq_id, supplier_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_rfq_recs_rfq ON rfq_supplier_recommendations(rfq_id);
+
+-- Tracks certification expiry dates per supplier
+CREATE TABLE supplier_certifications (
+  supplier_id TEXT PRIMARY KEY,
+  qm_cert_expiry DATE,
+  iso14001_expiry DATE,
+  iso45001_expiry DATE,
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- Enable RLS
 ALTER TABLE suppliers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rfqs ENABLE ROW LEVEL SECURITY;
@@ -148,6 +194,8 @@ ALTER TABLE qcs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE supplier_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rfq_supplier_recommendations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE supplier_certifications ENABLE ROW LEVEL SECURITY;
 
 -- Allow all access (for development)
 CREATE POLICY "Allow all" ON suppliers FOR ALL USING (true) WITH CHECK (true);
@@ -159,6 +207,8 @@ CREATE POLICY "Allow all" ON qcs FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON messages FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON notifications FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all operations on supplier_tokens" ON supplier_tokens FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON rfq_supplier_recommendations FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON supplier_certifications FOR ALL USING (true) WITH CHECK (true);
 
 -- Enable Supabase Realtime on all tables that need live updates.
 -- These settings allow the Realtime WebSocket channel to broadcast row-level
@@ -184,11 +234,33 @@ BEGIN
   END IF;
 END $$;
 
--- Seed default suppliers
-INSERT INTO suppliers (id, name, company, email, contact_name, rating, role) VALUES
-  ('SUP-001', 'Steel Corp GmbH', 'Steel Corp', 'contact@steelcorp.de', 'Hans Becker', 'A', 'supplier_a'),
-  ('SUP-002', 'MetalWorks AG', 'Industrial Metals', 'info@metalworks.de', 'Sabine Richter', 'B', 'supplier_b'),
-  ('SUP-003', 'Precision Parts Ltd', 'Precision Parts', 'sales@precisionparts.co.uk', 'James Wilson', 'A', 'supplier_c'),
-  ('SUP-004', 'AlloyTech Industries', 'Global Steel', 'procurement@alloytech.com', 'Maria Garcia', 'B', 'supplier_d'),
-  ('SUP-005', 'EuroForge SA', 'Euro Components', 'contact@euroforge.eu', 'Pierre Dubois', 'C', 'supplier_e')
-ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, company = EXCLUDED.company, email = EXCLUDED.email, contact_name = EXCLUDED.contact_name, rating = EXCLUDED.rating, role = EXCLUDED.role;
+-- Seed default suppliers (with NLP scoring attributes)
+INSERT INTO suppliers (id, name, company, email, contact_name, rating, role,
+  scc_codes, material_groups, country, segment,
+  sgp_total_score, supplier_evaluation_score, sustainability_audit_score,
+  risk_assessment_result, credit_check_score) VALUES
+  ('SUP-001', 'Steel Corp GmbH', 'Steel Corp', 'contact@steelcorp.de', 'Hans Becker', 'A', 'supplier_a',
+   ARRAY['steel','structural','plates','beams'], ARRAY['raw-materials','metal'], 'Germany', 'preferred',
+   88, 85, 80, 'A', 90),
+  ('SUP-002', 'MetalWorks AG', 'Industrial Metals', 'info@metalworks.de', 'Sabine Richter', 'B', 'supplier_b',
+   ARRAY['machined','cnc','components','parts'], ARRAY['machined-components','precision'], 'Germany', 'approved',
+   74, 72, 68, 'B', 75),
+  ('SUP-003', 'Precision Parts Ltd', 'Precision Parts', 'sales@precisionparts.co.uk', 'James Wilson', 'A', 'supplier_c',
+   ARRAY['bearings','fasteners','precision','assembly'], ARRAY['precision-parts','fasteners'], 'UK', 'preferred',
+   90, 88, 85, 'A', 92),
+  ('SUP-004', 'AlloyTech Industries', 'Global Steel', 'procurement@alloytech.com', 'Maria Garcia', 'B', 'supplier_d',
+   ARRAY['aluminum','titanium','alloy','aerospace'], ARRAY['light-metals','alloys'], 'USA', 'conditional',
+   65, 60, 55, 'B', 65),
+  ('SUP-005', 'EuroForge SA', 'Euro Components', 'contact@euroforge.eu', 'Pierre Dubois', 'C', 'supplier_e',
+   ARRAY['forging','casting','heavy','industrial'], ARRAY['forged-parts','castings'], 'France', 'approved',
+   58, 55, 50, 'C', 55)
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name, company = EXCLUDED.company, email = EXCLUDED.email,
+  contact_name = EXCLUDED.contact_name, rating = EXCLUDED.rating, role = EXCLUDED.role,
+  scc_codes = EXCLUDED.scc_codes, material_groups = EXCLUDED.material_groups,
+  country = EXCLUDED.country, segment = EXCLUDED.segment,
+  sgp_total_score = EXCLUDED.sgp_total_score,
+  supplier_evaluation_score = EXCLUDED.supplier_evaluation_score,
+  sustainability_audit_score = EXCLUDED.sustainability_audit_score,
+  risk_assessment_result = EXCLUDED.risk_assessment_result,
+  credit_check_score = EXCLUDED.credit_check_score;
