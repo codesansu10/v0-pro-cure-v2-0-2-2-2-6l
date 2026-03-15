@@ -18,7 +18,7 @@ import type {
 
 // ===== MAPPING FUNCTIONS =====
 
-function fromSupabaseRFQ(row: Record<string, unknown>): RFQ {
+export function fromSupabaseRFQRow(row: Record<string, unknown>): RFQ {
   return {
     id: (row.rfq_number as string) || (row.id as string),
     project: (row.project as string) || "",
@@ -36,6 +36,11 @@ function fromSupabaseRFQ(row: Record<string, unknown>): RFQ {
     createdAt: (row.created_at as string) || new Date().toISOString(),
     updatedAt: (row.updated_at as string) || (row.created_at as string) || new Date().toISOString(),
   };
+}
+
+// Keep internal alias for backwards compat within this file
+function fromSupabaseRFQ(row: Record<string, unknown>): RFQ {
+  return fromSupabaseRFQRow(row);
 }
 
 function toSupabaseRFQ(rfq: RFQ): Record<string, unknown> {
@@ -92,7 +97,7 @@ function fromSupabaseSupplier(row: Record<string, unknown>): Supplier {
   };
 }
 
-function fromSupabaseRFQSupplier(row: Record<string, unknown>): RFQSupplier {
+export function fromSupabaseRFQSupplierRow(row: Record<string, unknown>): RFQSupplier {
   return {
     rfqId: row.rfq_id as string,
     supplierId: row.supplier_id as string,
@@ -102,7 +107,11 @@ function fromSupabaseRFQSupplier(row: Record<string, unknown>): RFQSupplier {
   };
 }
 
-function fromSupabaseQuotation(row: Record<string, unknown>): Quotation {
+function fromSupabaseRFQSupplier(row: Record<string, unknown>): RFQSupplier {
+  return fromSupabaseRFQSupplierRow(row);
+}
+
+export function fromSupabaseQuotationRow(row: Record<string, unknown>): Quotation {
   return {
     id: row.id as string,
     rfqId: row.rfq_id as string,
@@ -117,6 +126,10 @@ function fromSupabaseQuotation(row: Record<string, unknown>): Quotation {
     quotationPdfUrl: (row.quotation_pdf_url as string) || undefined,
     supportingDocsUrl: (row.supporting_docs_url as string) || undefined,
   };
+}
+
+function fromSupabaseQuotation(row: Record<string, unknown>): Quotation {
+  return fromSupabaseQuotationRow(row);
 }
 
 function fromSupabaseQuotationItem(row: Record<string, unknown>): QuotationLineItem {
@@ -336,7 +349,7 @@ export async function seedSuppliers(): Promise<void> {
 
 // ===== QCS FUNCTIONS =====
 
-function fromSupabaseQCS(row: Record<string, unknown>): QCS {
+export function fromSupabaseQCSRow(row: Record<string, unknown>): QCS {
   return {
     id: row.id as string,
     rfqId: row.rfq_id as string,
@@ -353,6 +366,10 @@ function fromSupabaseQCS(row: Record<string, unknown>): QCS {
     hopComment: (row.hop_comment as string) || undefined,
     createdAt: (row.created_at as string) || new Date().toISOString(),
   };
+}
+
+function fromSupabaseQCS(row: Record<string, unknown>): QCS {
+  return fromSupabaseQCSRow(row);
 }
 
 export async function fetchQCS(): Promise<QCS[]> {
@@ -417,7 +434,7 @@ export async function updateQCSInSupabase(id: string, updates: Partial<QCS>): Pr
 
 // ===== MESSAGE FUNCTIONS =====
 
-function fromSupabaseMessage(row: Record<string, unknown>): Message {
+export function fromSupabaseMessageRow(row: Record<string, unknown>): Message {
   return {
     id: row.id as string,
     rfqId: (row.rfq_id as string) || undefined,
@@ -430,6 +447,10 @@ function fromSupabaseMessage(row: Record<string, unknown>): Message {
     message: row.message as string,
     timestamp: (row.created_at as string) || new Date().toISOString(),
   };
+}
+
+function fromSupabaseMessage(row: Record<string, unknown>): Message {
+  return fromSupabaseMessageRow(row);
 }
 
 export async function fetchMessages(): Promise<Message[]> {
@@ -466,7 +487,7 @@ export async function insertMessage(msg: Message): Promise<boolean> {
 
 // ===== NOTIFICATION FUNCTIONS =====
 
-function fromSupabaseNotification(row: Record<string, unknown>): Notification {
+export function fromSupabaseNotificationRow(row: Record<string, unknown>): Notification {
   return {
     id: row.id as string,
     role: (row.role as NotificationRole),
@@ -480,6 +501,10 @@ function fromSupabaseNotification(row: Record<string, unknown>): Notification {
     createdAt: (row.created_at as string) || new Date().toISOString(),
     read: (row.read as boolean) || false,
   };
+}
+
+function fromSupabaseNotification(row: Record<string, unknown>): Notification {
+  return fromSupabaseNotificationRow(row);
 }
 
 export async function fetchNotifications(): Promise<Notification[]> {
