@@ -38,7 +38,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { ActivityFeed } from "./activity-feed";
 
 export function ProcurementDashboard() {
   const {
@@ -542,8 +541,6 @@ export function ProcurementDashboard() {
       </Card>
 
       {chatRFQId && <ChatPanel rfqId={chatRFQId} />}
-
-      <ActivityFeed />
 
       {showForm && (
         <RFQForm
