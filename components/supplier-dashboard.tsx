@@ -392,13 +392,13 @@ export function SupplierDashboard() {
         open={!!quoteDialog}
         onOpenChange={() => setQuoteDialog(null)}
       >
-        <DialogContent className="max-w-4xl flex flex-col max-h-[90vh] p-0 gap-0">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border shrink-0">
-            <DialogTitle className="text-base font-semibold">
+        <DialogContent className="max-w-5xl flex flex-col max-h-[95vh] p-0 gap-0">
+          <DialogHeader className="px-8 pt-7 pb-5 border-b border-border shrink-0">
+            <DialogTitle className="text-lg font-semibold">
               Submit Quotation — {quoteDialog}
             </DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col gap-5 overflow-y-auto px-6 py-5 flex-1">
+          <div className="flex flex-col gap-6 overflow-y-auto px-8 py-6 flex-1">
             {/* Line Items Section */}
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
@@ -613,7 +613,7 @@ export function SupplierDashboard() {
             <div className="flex flex-col gap-2">
               <Label className="text-sm">Comments</Label>
               <Textarea
-                className="text-sm min-h-20"
+                className="text-sm min-h-28"
                 value={quoteForm.comments}
                 onChange={(e) =>
                   setQuoteForm({ ...quoteForm, comments: e.target.value })
@@ -622,7 +622,7 @@ export function SupplierDashboard() {
               />
             </div>
           </div>
-          <DialogFooter className="px-6 py-4 border-t border-border shrink-0">
+          <DialogFooter className="px-8 py-5 border-t border-border shrink-0">
             <Button
               variant="outline"
               className="text-sm h-10 px-5"
