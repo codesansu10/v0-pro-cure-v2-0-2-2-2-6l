@@ -81,7 +81,7 @@ export function ProcurementDashboard() {
     for (const sid of selectedSuppliers) {
       assignSupplier(rfqId, sid);
 
-      // Generate token and store in Supabase (fire-and-forget)
+      // Generate token and store in Supabase for supplier portal access (fire-and-forget)
       const token = generateSupplierToken(sid, rfqId);
       storeSupplierToken(token, sid, rfqId).catch(() => {});
 
