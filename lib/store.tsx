@@ -202,7 +202,29 @@ const StoreContext = createContext<StoreContextType | null>(null);
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AppState>(initialState);
-  const [currentRole, setCurrentRole] = useState<Role>("engineer");
+
+  // Initialise role from localStorage token auth (set by /login/[slug] page)
+  const getInitialRole = (): Role => {
+    if (typeof window !== "undefined") {
+      const storedRole = localStorage.getItem("procure-auth-role") as Role | null;
+      if (storedRole) {
+        const validRoles: Role[] = [
+          "engineer",
+          "procurement",
+          "supplier_a",
+          "supplier_b",
+          "supplier_c",
+          "supplier_d",
+          "supplier_e",
+          "hop",
+        ];
+        if (validRoles.includes(storedRole)) return storedRole;
+      }
+    }
+    return "engineer";
+  };
+
+  const [currentRole, setCurrentRole] = useState<Role>(getInitialRole);
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [selectedRFQId, setSelectedRFQId] = useState<string | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
