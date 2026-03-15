@@ -38,7 +38,7 @@ export async function storeSupplierToken(token: string, supplierId: string, rfqI
       rfq_id: rfqId,
       created_at: new Date().toISOString(),
       expires_at: new Date(Date.now() + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000).toISOString(),
-      used: false,
+      used_count: 0,
     });
   } catch (err) {
     console.warn("[tokens] Failed to store supplier token:", err);
@@ -61,6 +61,11 @@ export async function validateSupplierToken(token: string): Promise<{ supplierId
         .single();
 
       if (data && new Date(data.expires_at) > new Date()) {
+        // Increment used_count to track access frequency (fire-and-forget)
+        void supabase
+          .from("supplier_tokens")
+          .update({ used_count: (data.used_count ?? 0) + 1 })
+          .eq("token", token);
         return { supplierId: data.supplier_id, rfqId: data.rfq_id };
       }
     } catch {

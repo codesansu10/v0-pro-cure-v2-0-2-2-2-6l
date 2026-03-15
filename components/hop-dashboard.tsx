@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import type { QCSStatus } from "@/lib/types";
 import { ActivityFeed } from "./activity-feed";
+import { EmailLogsPanel } from "./email-logs-panel";
 
 const statusLabels: Record<QCSStatus, string> = {
   draft: "Draft",
@@ -494,6 +495,8 @@ export function HOPDashboard() {
       {chatRFQId && <ChatPanel rfqId={chatRFQId} />}
 
       <ActivityFeed />
+
+      <EmailLogsPanel compact />
 
       {/* Reject Dialog */}
       <Dialog

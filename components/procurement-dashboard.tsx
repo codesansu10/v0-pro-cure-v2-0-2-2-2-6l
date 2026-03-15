@@ -38,6 +38,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { ActivityFeed } from "./activity-feed";
+import { EmailLogsPanel } from "./email-logs-panel";
 
 export function ProcurementDashboard() {
   const {
@@ -543,6 +544,8 @@ export function ProcurementDashboard() {
       {chatRFQId && <ChatPanel rfqId={chatRFQId} />}
 
       <ActivityFeed />
+
+      <EmailLogsPanel />
 
       {showForm && (
         <RFQForm

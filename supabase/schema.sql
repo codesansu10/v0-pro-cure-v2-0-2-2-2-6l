@@ -1,4 +1,5 @@
 -- Drop existing tables if they exist (for clean setup)
+DROP TABLE IF EXISTS email_logs CASCADE;
 DROP TABLE IF EXISTS notifications CASCADE;
 DROP TABLE IF EXISTS messages CASCADE;
 DROP TABLE IF EXISTS qcs CASCADE;
@@ -7,6 +8,7 @@ DROP TABLE IF EXISTS quotations CASCADE;
 DROP TABLE IF EXISTS rfq_suppliers CASCADE;
 DROP TABLE IF EXISTS rfqs CASCADE;
 DROP TABLE IF EXISTS suppliers CASCADE;
+DROP TABLE IF EXISTS supplier_tokens CASCADE;
 
 -- Suppliers table
 CREATE TABLE suppliers (
@@ -62,6 +64,8 @@ CREATE TABLE quotations (
   notes TEXT DEFAULT '',
   quotation_pdf_url TEXT,
   supporting_docs_url TEXT,
+  email_sent_at TIMESTAMPTZ,
+  email_notification_id UUID,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -131,12 +135,30 @@ CREATE TABLE IF NOT EXISTS supplier_tokens (
   rfq_id TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT now(),
   expires_at TIMESTAMPTZ NOT NULL,
-  used BOOLEAN DEFAULT false
+  used_count INT DEFAULT 0
+);
+
+-- Email logs table – tracks every email sent by the automation workflows
+CREATE TABLE IF NOT EXISTS email_logs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  recipient_email VARCHAR(255) NOT NULL,
+  recipient_role VARCHAR(50),
+  email_type VARCHAR(50) NOT NULL CHECK (email_type IN ('request_created', 'rfq_sent', 'quotation_received', 'quotations_ready', 'hop_decision')),
+  request_id TEXT,
+  subject VARCHAR(255),
+  body TEXT,
+  sent_at TIMESTAMPTZ DEFAULT now(),
+  status VARCHAR(50) DEFAULT 'sent' CHECK (status IN ('sent', 'failed')),
+  created_at TIMESTAMPTZ DEFAULT now()
 );
 
 -- Index for fast token lookups
 CREATE INDEX IF NOT EXISTS idx_supplier_tokens_token ON supplier_tokens(token);
 CREATE INDEX IF NOT EXISTS idx_supplier_tokens_supplier ON supplier_tokens(supplier_id);
+
+-- Index for fast email log queries by request
+CREATE INDEX IF NOT EXISTS idx_email_logs_request ON email_logs(request_id);
+CREATE INDEX IF NOT EXISTS idx_email_logs_type ON email_logs(email_type);
 
 -- Enable RLS
 ALTER TABLE suppliers ENABLE ROW LEVEL SECURITY;
@@ -148,6 +170,7 @@ ALTER TABLE qcs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE supplier_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE email_logs ENABLE ROW LEVEL SECURITY;
 
 -- Allow all access (for development)
 CREATE POLICY "Allow all" ON suppliers FOR ALL USING (true) WITH CHECK (true);
@@ -159,6 +182,7 @@ CREATE POLICY "Allow all" ON qcs FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON messages FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON notifications FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all operations on supplier_tokens" ON supplier_tokens FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all operations on email_logs" ON email_logs FOR ALL USING (true) WITH CHECK (true);
 
 -- Enable Supabase Realtime on all tables that need live updates.
 -- These settings allow the Realtime WebSocket channel to broadcast row-level
@@ -169,6 +193,7 @@ ALTER TABLE quotations REPLICA IDENTITY FULL;
 ALTER TABLE qcs REPLICA IDENTITY FULL;
 ALTER TABLE messages REPLICA IDENTITY FULL;
 ALTER TABLE notifications REPLICA IDENTITY FULL;
+ALTER TABLE email_logs REPLICA IDENTITY FULL;
 
 -- Add all realtime-enabled tables to the supabase_realtime publication.
 -- Run this once in the Supabase SQL editor after applying the schema.
@@ -178,9 +203,9 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime'
   ) THEN
-    CREATE PUBLICATION supabase_realtime FOR TABLE rfqs, rfq_suppliers, quotations, qcs, messages, notifications;
+    CREATE PUBLICATION supabase_realtime FOR TABLE rfqs, rfq_suppliers, quotations, qcs, messages, notifications, email_logs;
   ELSE
-    ALTER PUBLICATION supabase_realtime ADD TABLE rfqs, rfq_suppliers, quotations, qcs, messages, notifications;
+    ALTER PUBLICATION supabase_realtime ADD TABLE rfqs, rfq_suppliers, quotations, qcs, messages, notifications, email_logs;
   END IF;
 END $$;
 

@@ -1,0 +1,109 @@
+{
+  "name": "Workflow 1: RFQ Submitted — Email Procurement",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rfq-submitted",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-rfq-submitted",
+      "name": "Webhook: RFQ Submitted",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "rfq-submitted"
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@thyssenkrupp.com",
+        "toEmail": "={{ $json.body.procurementEmail }}",
+        "subject": "=New RFQ Submitted: {{ $json.body.project }} – {{ $json.body.component }}",
+        "emailFormat": "html",
+        "message": "=<h2>New RFQ Submitted</h2>\n<p><strong>Engineer:</strong> {{ $json.body.engineerName }}</p>\n<p><strong>Project:</strong> {{ $json.body.project }}</p>\n<p><strong>Component:</strong> {{ $json.body.component }}</p>\n<p><strong>Budget:</strong> €{{ $json.body.budget }}</p>\n<p><strong>RFQ ID:</strong> {{ $json.body.rfqId }}</p>\n<hr>\n<p>Please review the request in the <a href='{{ $env.APP_URL }}/'>Procurement Dashboard</a>.</p>"
+      },
+      "id": "send-email-procurement",
+      "name": "Send Email to Procurement",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "email_logs",
+        "columns": "recipient_email, recipient_role, email_type, request_id, subject, status",
+        "additionalFields": {
+          "recipient_email": "={{ $json.body.procurementEmail }}",
+          "recipient_role": "procurement",
+          "email_type": "request_created",
+          "request_id": "={{ $json.body.rfqId }}",
+          "subject": "=New RFQ Submitted: {{ $json.body.project }} – {{ $json.body.component }}",
+          "status": "sent"
+        }
+      },
+      "id": "log-email-supabase",
+      "name": "Log Email in Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "notifications",
+        "columns": "id, role, rfq_id, title, message, type, read",
+        "additionalFields": {
+          "id": "=not-{{ $json.body.rfqId }}-{{ $now.toMillis() }}",
+          "role": "procurement",
+          "rfq_id": "={{ $json.body.rfqId }}",
+          "title": "=New RFQ: {{ $json.body.project }}",
+          "message": "={{ $json.body.engineerName }} submitted a new RFQ for {{ $json.body.component }}",
+          "type": "rfq",
+          "read": false
+        }
+      },
+      "id": "insert-notification",
+      "name": "Insert Real-time Notification",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"ok\":true}"
+      },
+      "id": "respond",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Webhook: RFQ Submitted": {
+      "main": [[{ "node": "Send Email to Procurement", "type": "main", "index": 0 }]]
+    },
+    "Send Email to Procurement": {
+      "main": [[{ "node": "Log Email in Supabase", "type": "main", "index": 0 }]]
+    },
+    "Log Email in Supabase": {
+      "main": [[{ "node": "Insert Real-time Notification", "type": "main", "index": 0 }]]
+    },
+    "Insert Real-time Notification": {
+      "main": [[{ "node": "Respond OK", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["procurement", "email", "rfq"],
+  "meta": {
+    "description": "Triggered when an engineer submits an RFQ. Sends email to Procurement, logs the email, and inserts a real-time notification."
+  }
+}
