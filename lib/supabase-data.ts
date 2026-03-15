@@ -292,6 +292,21 @@ export async function insertQuotationItems(quotationId: string, items: Quotation
   return true;
 }
 
+export async function insertQuotationWithItems(
+  quotation: Omit<Quotation, "lineItems">,
+  lineItems: QuotationLineItem[]
+): Promise<boolean> {
+  const quotationId = await insertQuotation(quotation);
+  if (!quotationId) return false;
+
+  if (lineItems && lineItems.length > 0) {
+    const itemsSuccess = await insertQuotationItems(quotationId, lineItems);
+    if (!itemsSuccess) return false;
+  }
+
+  return true;
+}
+
 // ===== UPDATE FUNCTIONS =====
 
 export async function updateRFQStatus(rfqId: string, status: string): Promise<boolean> {
