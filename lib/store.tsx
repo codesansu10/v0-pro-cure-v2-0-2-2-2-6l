@@ -266,6 +266,31 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             notifications: notificationsData.length > 0 ? notificationsData : prev.notifications,
           };
         });
+
+        // Advance the ID counter past the highest existing numeric suffix so that
+        // new records never collide with records already stored in Supabase.
+        // Without this, the counter resets to 1 on every page load and the first
+        // insert would attempt to reuse an ID like RFQ-2026-001, triggering a
+        // unique-constraint violation that causes insertRFQ() to fail silently.
+        const allLoadedIds = [
+          ...(rfqs ?? []),
+          ...(quotations ?? []),
+          ...(qcsData ?? []),
+          ...(messagesData ?? []),
+          ...(notificationsData ?? []),
+        ].map((r) => r.id);
+
+        // Extract the trailing numeric part from IDs like "RFQ-2026-001" → 1.
+        // IDs with no numeric suffix contribute 0 and are safely ignored.
+        const maxNum = allLoadedIds.reduce((max, id) => {
+          const match = id.match(/-(\d+)$/);
+          return Math.max(max, match ? parseInt(match[1], 10) : 0);
+        }, 0);
+
+        if (maxNum >= counterRef.current) {
+          counterRef.current = maxNum + 1;
+        }
+
         setDataLoaded(true);
       } catch (err) {
         console.error("[Supabase] Error loading data:", err);
