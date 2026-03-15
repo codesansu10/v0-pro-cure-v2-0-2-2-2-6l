@@ -406,88 +406,89 @@ export function SupplierDashboard() {
                 <Button
                   type="button"
                   variant="outline"
-                  size="sm"
-                  className="h-9 gap-1.5 px-3 text-sm"
+                  className="h-10 gap-1.5 px-4 text-sm font-medium"
                   onClick={addLineItem}
                 >
                   <Plus className="h-4 w-4" />
                   Add Position
                 </Button>
               </div>
-              <div className="border border-border rounded-lg overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-40">Item Name</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10">Description</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-24">Qty</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-32">Unit Price</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-32">Total</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-12"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {lineItems.map((item, index) => (
-                      <TableRow key={item.id} className="hover:bg-muted/50">
-                        <TableCell className="p-2">
-                          <Input
-                            className="h-9 text-sm"
-                            placeholder="Item name"
-                            value={item.itemName}
-                            onChange={(e) => handleLineItemChange(index, "itemName", e.target.value)}
-                          />
-                        </TableCell>
-                        <TableCell className="p-2">
-                          <Input
-                            className="h-9 text-sm"
-                            placeholder="Description"
-                            value={item.description}
-                            onChange={(e) => handleLineItemChange(index, "description", e.target.value)}
-                          />
-                        </TableCell>
-                        <TableCell className="p-2">
-                          <Input
-                            className="h-9 text-sm"
-                            type="number"
-                            min="1"
-                            value={item.quantity || ""}
-                            onChange={(e) => handleLineItemChange(index, "quantity", e.target.value)}
-                          />
-                        </TableCell>
-                        <TableCell className="p-2">
-                          <Input
-                            className="h-9 text-sm"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={item.unitPrice || ""}
-                            onChange={(e) => handleLineItemChange(index, "unitPrice", e.target.value)}
-                          />
-                        </TableCell>
-                        <TableCell className="p-2 text-sm font-medium whitespace-nowrap">
+              <div className="flex flex-col gap-4">
+                {lineItems.map((item, index) => (
+                  <div key={item.id} className="border border-border rounded-lg p-4 flex flex-col gap-4 bg-muted/20">
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor={`item-name-${index}`} className="text-sm font-medium">Item Name</Label>
+                      <Input
+                        id={`item-name-${index}`}
+                        className="h-12 text-sm w-full"
+                        placeholder="e.g., Steel Plate 1000x500mm"
+                        value={item.itemName}
+                        onChange={(e) => handleLineItemChange(index, "itemName", e.target.value)}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor={`item-desc-${index}`} className="text-sm font-medium">Description</Label>
+                      <Textarea
+                        id={`item-desc-${index}`}
+                        className="text-sm w-full h-20 resize-none"
+                        placeholder="Detailed description..."
+                        value={item.description}
+                        onChange={(e) => handleLineItemChange(index, "description", e.target.value)}
+                      />
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor={`item-qty-${index}`} className="text-sm font-medium">Quantity</Label>
+                        <Input
+                          id={`item-qty-${index}`}
+                          className="h-12 text-lg font-bold w-full"
+                          type="number"
+                          min="1"
+                          placeholder="0"
+                          value={item.quantity || ""}
+                          onChange={(e) => handleLineItemChange(index, "quantity", e.target.value)}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor={`item-price-${index}`} className="text-sm font-medium">Unit Price (EUR)</Label>
+                        <Input
+                          id={`item-price-${index}`}
+                          className="h-12 text-sm w-full"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={item.unitPrice || ""}
+                          onChange={(e) => handleLineItemChange(index, "unitPrice", e.target.value)}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <Label className="text-sm font-medium">Total</Label>
+                        <div className="h-12 flex items-center text-lg font-bold px-3 border border-border rounded-md bg-muted/50">
                           {item.totalPrice.toLocaleString("de-DE")} EUR
-                        </TableCell>
-                        <TableCell className="p-2">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                            onClick={() => removeLineItem(index)}
-                            disabled={lineItems.length === 1}
-                          >
-                            <Trash2 className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-9 px-4 text-sm text-destructive border-destructive/40 hover:bg-destructive/10"
+                        onClick={() => removeLineItem(index)}
+                        disabled={lineItems.length === 1}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1.5" />
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
               <div className="flex justify-end">
-                <div className="bg-muted/50 px-4 py-2.5 rounded text-sm">
+                <div className="bg-muted/50 px-5 py-3 rounded-lg text-base">
                   <span className="text-muted-foreground">Total Price: </span>
-                  <span className="font-bold">{calculatedTotalPrice.toLocaleString("de-DE")} EUR</span>
+                  <span className="text-lg font-bold">{calculatedTotalPrice.toLocaleString("de-DE")} EUR</span>
                 </div>
               </div>
             </div>
