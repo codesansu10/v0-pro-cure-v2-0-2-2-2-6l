@@ -160,6 +160,30 @@ CREATE POLICY "Allow all" ON messages FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON notifications FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all operations on supplier_tokens" ON supplier_tokens FOR ALL USING (true) WITH CHECK (true);
 
+-- Enable Supabase Realtime on all tables that need live updates.
+-- These settings allow the Realtime WebSocket channel to broadcast row-level
+-- changes to connected clients so all dashboards see updates instantly.
+ALTER TABLE rfqs REPLICA IDENTITY FULL;
+ALTER TABLE rfq_suppliers REPLICA IDENTITY FULL;
+ALTER TABLE quotations REPLICA IDENTITY FULL;
+ALTER TABLE qcs REPLICA IDENTITY FULL;
+ALTER TABLE messages REPLICA IDENTITY FULL;
+ALTER TABLE notifications REPLICA IDENTITY FULL;
+
+-- Add all realtime-enabled tables to the supabase_realtime publication.
+-- Run this once in the Supabase SQL editor after applying the schema.
+-- (If the publication already exists, use ALTER PUBLICATION instead of CREATE.)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime'
+  ) THEN
+    CREATE PUBLICATION supabase_realtime FOR TABLE rfqs, rfq_suppliers, quotations, qcs, messages, notifications;
+  ELSE
+    ALTER PUBLICATION supabase_realtime ADD TABLE rfqs, rfq_suppliers, quotations, qcs, messages, notifications;
+  END IF;
+END $$;
+
 -- Seed default suppliers
 INSERT INTO suppliers (id, name, company, email, contact_name, rating, role) VALUES
   ('SUP-001', 'Steel Corp GmbH', 'Steel Corp', 'contact@steelcorp.de', 'Hans Becker', 'A', 'supplier_a'),

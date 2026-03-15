@@ -37,8 +37,8 @@ import {
   MessageSquare,
   Eye,
 } from "lucide-react";
-import { TkLogo } from "@/components/tk-logo";
 import type { QCSStatus } from "@/lib/types";
+import { ActivityFeed } from "./activity-feed";
 
 const statusLabels: Record<QCSStatus, string> = {
   draft: "Draft",
@@ -233,16 +233,13 @@ export function HOPDashboard() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-4">
-        <TkLogo containerClassName="h-7 w-28" />
-        <div>
-          <h2 className="text-sm font-semibold text-foreground">
-            Head of Procurement Dashboard
-          </h2>
-          <p className="text-[11px] text-muted-foreground">
-            Review QCS, approve awards, and monitor procurement pipeline
-          </p>
-        </div>
+      <div>
+        <h2 className="text-sm font-semibold text-foreground">
+          Head of Procurement Dashboard
+        </h2>
+        <p className="text-[11px] text-muted-foreground">
+          Review QCS, approve awards, and monitor procurement pipeline
+        </p>
       </div>
 
       <div className="grid grid-cols-5 gap-3">
@@ -495,6 +492,8 @@ export function HOPDashboard() {
       </Card>
 
       {chatRFQId && <ChatPanel rfqId={chatRFQId} />}
+
+      <ActivityFeed />
 
       {/* Reject Dialog */}
       <Dialog

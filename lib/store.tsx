@@ -22,7 +22,14 @@ import {
   insertNotification as insertNotificationToSupabase,
   updateNotificationRead,
   updateRFQFields,
+  fromSupabaseRFQRow,
+  fromSupabaseRFQSupplierRow,
+  fromSupabaseQuotationRow,
+  fromSupabaseQCSRow,
+  fromSupabaseMessageRow,
+  fromSupabaseNotificationRow,
 } from "./supabase-data";
+import { supabase } from "./supabaseClient";
 
 const defaultUsers = [
   { id: "USR-001", name: "Max Mueller", role: "engineer" as Role, email: "m.mueller@thyssenkrupp.com" },
@@ -149,6 +156,7 @@ interface StoreContextType {
   getCurrentUser: () => typeof defaultUsers[0];
   selectedRFQId: string | null;
   setSelectedRFQId: (id: string | null) => void;
+  realtimeConnected: boolean;
 }
 
 const StoreContext = createContext<StoreContextType | null>(null);
@@ -159,6 +167,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [selectedRFQId, setSelectedRFQId] = useState<string | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
   const counterRef = useRef(1);
 
   const generateId = useCallback((prefix: string) => {
@@ -230,6 +239,150 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     }
     loadFromSupabase();
+  }, []);
+
+  // Set up Supabase Realtime subscriptions for live updates
+  useEffect(() => {
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel("procure-realtime")
+      // RFQs: new requests created by engineers become visible to all roles
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "rfqs" },
+        (payload) => {
+          const newRFQ = fromSupabaseRFQRow(payload.new as Record<string, unknown>);
+          setState((prev) => {
+            if (prev.rfqs.some((r) => r.id === newRFQ.id)) return prev;
+            return { ...prev, rfqs: [newRFQ, ...prev.rfqs] };
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "rfqs" },
+        (payload) => {
+          const updated = fromSupabaseRFQRow(payload.new as Record<string, unknown>);
+          setState((prev) => ({
+            ...prev,
+            rfqs: prev.rfqs.map((r) => (r.id === updated.id ? updated : r)),
+          }));
+        }
+      )
+      // RFQ-Supplier assignments: procurement sends to supplier → supplier sees in real-time
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "rfq_suppliers" },
+        (payload) => {
+          const assignment = fromSupabaseRFQSupplierRow(payload.new as Record<string, unknown>);
+          setState((prev) => {
+            if (prev.rfqSuppliers.some((rs) => rs.rfqId === assignment.rfqId && rs.supplierId === assignment.supplierId)) return prev;
+            return { ...prev, rfqSuppliers: [...prev.rfqSuppliers, assignment] };
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "rfq_suppliers" },
+        (payload) => {
+          const updated = fromSupabaseRFQSupplierRow(payload.new as Record<string, unknown>);
+          setState((prev) => ({
+            ...prev,
+            rfqSuppliers: prev.rfqSuppliers.map((rs) =>
+              rs.rfqId === updated.rfqId && rs.supplierId === updated.supplierId ? updated : rs
+            ),
+          }));
+        }
+      )
+      // Quotations: supplier submits quotation → procurement/engineer see it in real-time
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "quotations" },
+        (payload) => {
+          const newQuotation = fromSupabaseQuotationRow(payload.new as Record<string, unknown>);
+          setState((prev) => {
+            if (prev.quotations.some((q) => q.id === newQuotation.id)) return prev;
+            return { ...prev, quotations: [...prev.quotations, newQuotation] };
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "quotations" },
+        (payload) => {
+          const updated = fromSupabaseQuotationRow(payload.new as Record<string, unknown>);
+          setState((prev) => ({
+            ...prev,
+            quotations: prev.quotations.map((q) => (q.id === updated.id ? updated : q)),
+          }));
+        }
+      )
+      // QCS changes
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "qcs" },
+        (payload) => {
+          const newQCS = fromSupabaseQCSRow(payload.new as Record<string, unknown>);
+          setState((prev) => {
+            if (prev.qcs.some((q) => q.id === newQCS.id)) return prev;
+            return { ...prev, qcs: [newQCS, ...prev.qcs] };
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "qcs" },
+        (payload) => {
+          const updated = fromSupabaseQCSRow(payload.new as Record<string, unknown>);
+          setState((prev) => ({
+            ...prev,
+            qcs: prev.qcs.map((q) => (q.id === updated.id ? updated : q)),
+          }));
+        }
+      )
+      // Messages: real-time chat updates
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages" },
+        (payload) => {
+          const newMsg = fromSupabaseMessageRow(payload.new as Record<string, unknown>);
+          setState((prev) => {
+            if (prev.messages.some((m) => m.id === newMsg.id)) return prev;
+            return { ...prev, messages: [...prev.messages, newMsg] };
+          });
+        }
+      )
+      // Notifications: real-time alerts for all roles
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications" },
+        (payload) => {
+          const newNotif = fromSupabaseNotificationRow(payload.new as Record<string, unknown>);
+          setState((prev) => {
+            if (prev.notifications.some((n) => n.id === newNotif.id)) return prev;
+            return { ...prev, notifications: [newNotif, ...prev.notifications] };
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "notifications" },
+        (payload) => {
+          const updated = fromSupabaseNotificationRow(payload.new as Record<string, unknown>);
+          setState((prev) => ({
+            ...prev,
+            notifications: prev.notifications.map((n) => (n.id === updated.id ? updated : n)),
+          }));
+        }
+      )
+      .subscribe((status) => {
+        setRealtimeConnected(status === "SUBSCRIBED");
+      });
+
+    return () => {
+      if (supabase) supabase.removeChannel(channel);
+    };
   }, []);
 
   const getCurrentUser = useCallback(() => {
@@ -510,6 +663,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         getCurrentUser,
         selectedRFQId,
         setSelectedRFQId,
+        realtimeConnected,
       }}
     >
       {children}

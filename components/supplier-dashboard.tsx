@@ -32,9 +32,9 @@ import {
 } from "@/components/ui/dialog";
 import { ChatPanel } from "./chat-panel";
 import { FileText, Send, MessageSquare, Eye, Plus, Trash2, Upload } from "lucide-react";
-import { TkLogo } from "@/components/tk-logo";
 import type { QuotationLineItem, RFQSupplierStatus } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
+import { ActivityFeed } from "./activity-feed";
 
 // Status colors for supplier-specific RFQ status
 const supplierStatusColors: Record<RFQSupplierStatus, string> = {
@@ -101,16 +101,13 @@ export function SupplierDashboard() {
   if (!supplier) {
     return (
       <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-4">
-          <TkLogo containerClassName="h-7 w-28" />
-          <div>
-            <h2 className="text-sm font-semibold text-foreground">
-              Supplier Dashboard
-            </h2>
-            <p className="text-[11px] text-muted-foreground">
-              View assigned RFQs and submit quotations
-            </p>
-          </div>
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">
+            Supplier Dashboard
+          </h2>
+          <p className="text-[11px] text-muted-foreground">
+            View assigned RFQs and submit quotations
+          </p>
         </div>
         <Card className="border-border">
           <CardContent className="px-4 py-8 text-center">
@@ -183,16 +180,13 @@ export function SupplierDashboard() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-4">
-        <TkLogo containerClassName="h-7 w-28" />
-        <div>
-          <h2 className="text-sm font-semibold text-foreground">
-            Supplier Dashboard — {supplier.name}
-          </h2>
-          <p className="text-[11px] text-muted-foreground">
-            View assigned RFQs and submit quotations
-          </p>
-        </div>
+      <div>
+        <h2 className="text-sm font-semibold text-foreground">
+          Supplier Dashboard — {supplier.name}
+        </h2>
+        <p className="text-[11px] text-muted-foreground">
+          View assigned RFQs and submit quotations
+        </p>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
@@ -357,6 +351,8 @@ export function SupplierDashboard() {
       </Card>
 
       {chatRFQId && <ChatPanel rfqId={chatRFQId} />}
+
+      <ActivityFeed />
 
       {/* View RFQ Details */}
       <Dialog open={!!viewRFQ} onOpenChange={() => setViewRFQ(null)}>
