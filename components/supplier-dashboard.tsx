@@ -410,16 +410,17 @@ export function SupplierDashboard() {
         open={!!quoteDialog}
         onOpenChange={() => setQuoteDialog(null)}
       >
-        <DialogContent className="max-w-4xl flex flex-col max-h-[90vh] p-0 gap-0">
+        <DialogContent className="max-w-5xl flex flex-col max-h-[90vh] p-0 gap-0">
           <DialogHeader className="px-6 pt-6 pb-4 border-b border-border shrink-0">
             <DialogTitle className="text-base font-semibold">
               Submit Quotation — {quoteDialog}
             </DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col gap-5 overflow-y-auto px-6 py-5 flex-1">
-            {/* Line Items Section */}
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
+          {/* Two-column layout: Price Positions (left, fixed) | Form Fields (right, scrollable) */}
+          <div className="flex flex-1 min-h-0 overflow-hidden">
+            {/* Left Column — Price Positions (fixed, internally scrollable) */}
+            <div className="flex flex-col w-[58%] border-r border-border px-6 py-5 min-h-0">
+              <div className="flex items-center justify-between mb-3 shrink-0">
                 <Label className="text-sm font-semibold">Price Positions</Label>
                 <Button
                   type="button"
@@ -432,16 +433,17 @@ export function SupplierDashboard() {
                   Add Position
                 </Button>
               </div>
-              <div className="border border-border rounded-lg overflow-hidden">
+              {/* Scrollable table area — table never shifts when right-column fields change */}
+              <div className="flex-1 overflow-auto border border-border rounded-lg min-h-0">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="sticky top-0 z-10 bg-background">
                     <TableRow className="hover:bg-transparent">
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-40">Item Name</TableHead>
+                      <TableHead className="text-xs font-semibold uppercase h-10 w-36">Item Name</TableHead>
                       <TableHead className="text-xs font-semibold uppercase h-10">Description</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-24">Qty</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-32">Unit Price</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-32">Total</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-12"></TableHead>
+                      <TableHead className="text-xs font-semibold uppercase h-10 w-20 bg-[#00A0E3]/10 text-[#00A0E3]">Qty</TableHead>
+                      <TableHead className="text-xs font-semibold uppercase h-10 w-28">Unit Price</TableHead>
+                      <TableHead className="text-xs font-semibold uppercase h-10 w-28">Total</TableHead>
+                      <TableHead className="text-xs font-semibold uppercase h-10 w-10"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -463,9 +465,9 @@ export function SupplierDashboard() {
                             onChange={(e) => handleLineItemChange(index, "description", e.target.value)}
                           />
                         </TableCell>
-                        <TableCell className="p-2">
+                        <TableCell className="p-2 bg-[#00A0E3]/5">
                           <Input
-                            className="h-9 text-sm"
+                            className="h-9 text-sm font-semibold text-center"
                             type="number"
                             min="1"
                             value={item.quantity || ""}
@@ -502,7 +504,7 @@ export function SupplierDashboard() {
                   </TableBody>
                 </Table>
               </div>
-              <div className="flex justify-end">
+              <div className="flex justify-end mt-3 shrink-0">
                 <div className="bg-muted/50 px-4 py-2.5 rounded text-sm">
                   <span className="text-muted-foreground">Total Price: </span>
                   <span className="font-bold">{calculatedTotalPrice.toLocaleString("de-DE")} EUR</span>
@@ -510,134 +512,137 @@ export function SupplierDashboard() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-2">
-                <Label className="text-sm">Bonus / Malus (EUR)</Label>
-                <Input
-                  className="h-10 text-sm"
-                  type="number"
-                  value={quoteForm.bonusMalus || ""}
-                  onChange={(e) =>
-                    setQuoteForm({
-                      ...quoteForm,
-                      bonusMalus: parseFloat(e.target.value) || 0,
-                    })
-                  }
-                />
+            {/* Right Column — Other form fields (independently scrollable) */}
+            <div className="flex flex-col w-[42%] overflow-y-auto px-6 py-5 gap-5">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label className="text-sm">Bonus / Malus (EUR)</Label>
+                  <Input
+                    className="h-10 text-sm"
+                    type="number"
+                    value={quoteForm.bonusMalus || ""}
+                    onChange={(e) =>
+                      setQuoteForm({
+                        ...quoteForm,
+                        bonusMalus: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label className="text-sm">Delivery Time (weeks)</Label>
+                  <Input
+                    className="h-10 text-sm"
+                    type="number"
+                    value={quoteForm.deliveryTime || ""}
+                    onChange={(e) =>
+                      setQuoteForm({
+                        ...quoteForm,
+                        deliveryTime: parseInt(e.target.value) || 0,
+                      })
+                    }
+                  />
+                </div>
               </div>
-              <div className="flex flex-col gap-2">
-                <Label className="text-sm">Delivery Time (weeks)</Label>
-                <Input
-                  className="h-10 text-sm"
-                  type="number"
-                  value={quoteForm.deliveryTime || ""}
-                  onChange={(e) =>
-                    setQuoteForm({
-                      ...quoteForm,
-                      deliveryTime: parseInt(e.target.value) || 0,
-                    })
-                  }
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label className="text-sm">Payment Terms</Label>
+                  <Select
+                    value={quoteForm.paymentTerms}
+                    onValueChange={(v) =>
+                      setQuoteForm({ ...quoteForm, paymentTerms: v })
+                    }
+                  >
+                    <SelectTrigger className="h-10 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Net 30" className="text-sm">
+                        Net 30
+                      </SelectItem>
+                      <SelectItem value="Net 60" className="text-sm">
+                        Net 60
+                      </SelectItem>
+                      <SelectItem value="Net 90" className="text-sm">
+                        Net 90
+                      </SelectItem>
+                      <SelectItem value="Prepaid" className="text-sm">
+                        Prepaid
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label className="text-sm">Incoterms</Label>
+                  <Select
+                    value={quoteForm.incoterms}
+                    onValueChange={(v) =>
+                      setQuoteForm({ ...quoteForm, incoterms: v })
+                    }
+                  >
+                    <SelectTrigger className="h-10 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {["EXW", "FCA", "CPT", "CIP", "DAP", "DPU", "DDP", "FOB", "CIF"].map(
+                        (term) => (
+                          <SelectItem key={term} value={term} className="text-sm">
+                            {term}
+                          </SelectItem>
+                        )
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-2">
-                <Label className="text-sm">Payment Terms</Label>
-                <Select
-                  value={quoteForm.paymentTerms}
-                  onValueChange={(v) =>
-                    setQuoteForm({ ...quoteForm, paymentTerms: v })
-                  }
-                >
-                  <SelectTrigger className="h-10 text-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Net 30" className="text-sm">
-                      Net 30
-                    </SelectItem>
-                    <SelectItem value="Net 60" className="text-sm">
-                      Net 60
-                    </SelectItem>
-                    <SelectItem value="Net 90" className="text-sm">
-                      Net 90
-                    </SelectItem>
-                    <SelectItem value="Prepaid" className="text-sm">
-                      Prepaid
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label className="text-sm">Incoterms</Label>
-                <Select
-                  value={quoteForm.incoterms}
-                  onValueChange={(v) =>
-                    setQuoteForm({ ...quoteForm, incoterms: v })
-                  }
-                >
-                  <SelectTrigger className="h-10 text-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {["EXW", "FCA", "CPT", "CIP", "DAP", "DPU", "DDP", "FOB", "CIF"].map(
-                      (term) => (
-                        <SelectItem key={term} value={term} className="text-sm">
-                          {term}
-                        </SelectItem>
-                      )
+
+              {/* File Upload Section */}
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label className="text-sm">Upload Quotation PDF</Label>
+                  <div className="relative">
+                    <Input
+                      type="file"
+                      accept=".pdf"
+                      className="h-10 text-sm file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:bg-muted file:text-foreground"
+                      onChange={(e) => setQuotationPdf(e.target.files?.[0] || null)}
+                    />
+                    {quotationPdf && (
+                      <p className="text-xs text-emerald-600 mt-1">
+                        {quotationPdf.name}
+                      </p>
                     )}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* File Upload Section */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-2">
-                <Label className="text-sm">Upload Quotation PDF</Label>
-                <div className="relative">
-                  <Input
-                    type="file"
-                    accept=".pdf"
-                    className="h-10 text-sm file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:bg-muted file:text-foreground"
-                    onChange={(e) => setQuotationPdf(e.target.files?.[0] || null)}
-                  />
-                  {quotationPdf && (
-                    <p className="text-xs text-emerald-600 mt-1">
-                      {quotationPdf.name}
-                    </p>
-                  )}
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label className="text-sm">Supporting Documents</Label>
+                  <div className="relative">
+                    <Input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.xls,.xlsx"
+                      className="h-10 text-sm file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:bg-muted file:text-foreground"
+                      onChange={(e) => setSupportingDocs(e.target.files?.[0] || null)}
+                    />
+                    {supportingDocs && (
+                      <p className="text-xs text-emerald-600 mt-1">
+                        {supportingDocs.name}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
-              <div className="flex flex-col gap-2">
-                <Label className="text-sm">Supporting Documents</Label>
-                <div className="relative">
-                  <Input
-                    type="file"
-                    accept=".pdf,.doc,.docx,.xls,.xlsx"
-                    className="h-10 text-sm file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:bg-muted file:text-foreground"
-                    onChange={(e) => setSupportingDocs(e.target.files?.[0] || null)}
-                  />
-                  {supportingDocs && (
-                    <p className="text-xs text-emerald-600 mt-1">
-                      {supportingDocs.name}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
 
-            <div className="flex flex-col gap-2">
-              <Label className="text-sm">Comments</Label>
-              <Textarea
-                className="text-sm min-h-20"
-                value={quoteForm.comments}
-                onChange={(e) =>
-                  setQuoteForm({ ...quoteForm, comments: e.target.value })
-                }
-                placeholder="Additional comments..."
-              />
+              <div className="flex flex-col gap-2">
+                <Label className="text-sm">Comments</Label>
+                <Textarea
+                  className="text-sm min-h-20"
+                  value={quoteForm.comments}
+                  onChange={(e) =>
+                    setQuoteForm({ ...quoteForm, comments: e.target.value })
+                  }
+                  placeholder="Additional comments..."
+                />
+              </div>
             </div>
           </div>
           <DialogFooter className="px-6 py-4 border-t border-border shrink-0">
