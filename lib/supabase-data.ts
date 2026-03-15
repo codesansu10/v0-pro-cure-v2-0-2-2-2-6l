@@ -132,7 +132,7 @@ function fromSupabaseQuotation(row: Record<string, unknown>): Quotation {
   return fromSupabaseQuotationRow(row);
 }
 
-function fromSupabaseQuotationItem(row: Record<string, unknown>): QuotationLineItem {
+export function fromSupabaseQuotationItem(row: Record<string, unknown>): QuotationLineItem {
   return {
     id: row.id as string,
     itemName: (row.item_name as string) || "",
@@ -212,6 +212,46 @@ export async function fetchQuotationsWithItems(rfqId: string): Promise<(Quotatio
     })
   );
   return result;
+}
+
+/**
+ * Efficiently fetches all quotations with their line items using two queries
+ * instead of N+1. Groups quotation_items by quotation_id in memory.
+ */
+export async function fetchAllQuotationsWithItems(): Promise<(Quotation & { lineItems: QuotationLineItem[] })[]> {
+  if (!supabase) return [];
+
+  const [quotationsResult, itemsResult] = await Promise.all([
+    supabase.from("quotations").select("*"),
+    supabase.from("quotation_items").select("*"),
+  ]);
+
+  if (quotationsResult.error) {
+    console.error("[Supabase] Error fetching all quotations:", quotationsResult.error.message);
+    return [];
+  }
+
+  const quotations = (quotationsResult.data || []).map(fromSupabaseQuotation);
+
+  if (itemsResult.error) {
+    console.error("[Supabase] Error fetching all quotation items:", itemsResult.error.message);
+    return quotations.map((q) => ({ ...q, lineItems: [] }));
+  }
+
+  // Group items by quotation_id
+  const itemsByQuotationId: Record<string, QuotationLineItem[]> = {};
+  for (const rawItem of itemsResult.data || []) {
+    const quotationId = rawItem.quotation_id as string;
+    if (!itemsByQuotationId[quotationId]) {
+      itemsByQuotationId[quotationId] = [];
+    }
+    itemsByQuotationId[quotationId].push(fromSupabaseQuotationItem(rawItem));
+  }
+
+  return quotations.map((q) => ({
+    ...q,
+    lineItems: itemsByQuotationId[q.id] || [],
+  }));
 }
 
 // ===== INSERT FUNCTIONS =====
