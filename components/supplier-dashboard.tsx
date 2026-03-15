@@ -34,7 +34,6 @@ import { ChatPanel } from "./chat-panel";
 import { FileText, Send, MessageSquare, Eye, Plus, Trash2, Upload } from "lucide-react";
 import type { QuotationLineItem, RFQSupplierStatus } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
-import { ActivityFeed } from "./activity-feed";
 
 // Status colors for supplier-specific RFQ status
 const supplierStatusColors: Record<RFQSupplierStatus, string> = {
@@ -351,8 +350,6 @@ export function SupplierDashboard() {
       </Card>
 
       {chatRFQId && <ChatPanel rfqId={chatRFQId} />}
-
-      <ActivityFeed />
 
       {/* View RFQ Details */}
       <Dialog open={!!viewRFQ} onOpenChange={() => setViewRFQ(null)}>

@@ -16,7 +16,6 @@ import { StatusBadge } from "./status-badge";
 import { RFQForm } from "./rfq-form";
 import { ChatPanel } from "./chat-panel";
 import { Plus, MessageSquare, Edit, FileText } from "lucide-react";
-import { ActivityFeed } from "./activity-feed";
 
 export function EngineerDashboard() {
   const { state, getCurrentUser } = useStore();
@@ -196,8 +195,6 @@ export function EngineerDashboard() {
       </Card>
 
       {chatRFQId && <ChatPanel rfqId={chatRFQId} />}
-
-      <ActivityFeed />
 
       {showForm && (
         <RFQForm

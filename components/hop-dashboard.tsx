@@ -38,7 +38,6 @@ import {
   Eye,
 } from "lucide-react";
 import type { QCSStatus } from "@/lib/types";
-import { ActivityFeed } from "./activity-feed";
 
 const statusLabels: Record<QCSStatus, string> = {
   draft: "Draft",
@@ -492,8 +491,6 @@ export function HOPDashboard() {
       </Card>
 
       {chatRFQId && <ChatPanel rfqId={chatRFQId} />}
-
-      <ActivityFeed />
 
       {/* Reject Dialog */}
       <Dialog
