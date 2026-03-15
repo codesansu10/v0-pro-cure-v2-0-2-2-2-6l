@@ -38,11 +38,15 @@ const roleColors: Record<Role, string> = {
   hop: "bg-red-700",
 };
 
+const INTERNAL_ROLES = ['engineer', 'procurement', 'hop'] as const;
+
 export function Topbar() {
   const { currentRole, setCurrentRole, getCurrentUser, getUnreadCount } = useStore();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const user = getCurrentUser();
   const unreadCount = getUnreadCount();
+
+  const isInternal = INTERNAL_ROLES.includes(currentRole as typeof INTERNAL_ROLES[number]);
 
   return (
     <header className="flex h-14 items-center justify-between border-b border-border bg-card px-6">
@@ -60,21 +64,25 @@ export function Topbar() {
       </div>
 
       <div className="flex items-center gap-4">
-        <Select
-          value={currentRole}
-          onValueChange={(v) => setCurrentRole(v as Role)}
-        >
-          <SelectTrigger className="h-8 w-48 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.entries(roleLabels).map(([key, label]) => (
-              <SelectItem key={key} value={key} className="text-xs">
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {isInternal && (
+          <Select
+            value={currentRole}
+            onValueChange={(v) => setCurrentRole(v as Role)}
+          >
+            <SelectTrigger className="h-8 w-48 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(roleLabels)
+                .filter(([key]) => INTERNAL_ROLES.includes(key as typeof INTERNAL_ROLES[number]))
+                .map(([key, label]) => (
+                  <SelectItem key={key} value={key} className="text-xs">
+                    {label}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        )}
 
         <Button
           variant="ghost"
