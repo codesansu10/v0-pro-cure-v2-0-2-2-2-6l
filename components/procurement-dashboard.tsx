@@ -18,6 +18,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { StatusBadge } from "./status-badge";
 import { RFQForm } from "./rfq-form";
 import { ChatPanel } from "./chat-panel";
+import { SupplierRecommendations } from "./supplier-recommendations";
 import {
   FileText,
   Send,
@@ -568,6 +569,19 @@ export function ProcurementDashboard() {
               Assign Suppliers — {assignDialog}
             </DialogTitle>
           </DialogHeader>
+          {/* AI Recommendation trigger */}
+          {assignDialog && (() => {
+            const rfq = state.rfqs.find((r) => r.id === assignDialog);
+            return rfq ? (
+              <div className="flex justify-end">
+                <SupplierRecommendations
+                  rfq={rfq}
+                  suppliers={state.suppliers}
+                  onSelect={(ids) => setSelectedSuppliers(ids)}
+                />
+              </div>
+            ) : null;
+          })()}
           <div className="flex flex-col gap-3">
             {state.suppliers.map((sup) => (
               <label
