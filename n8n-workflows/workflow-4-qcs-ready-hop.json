@@ -1,0 +1,148 @@
+{
+  "name": "Workflow 4: All Quotations Ready — QCS Summary Email to HoP",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "qcs-submitted",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-qcs-submitted",
+      "name": "Webhook: QCS Submitted",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "qcs-submitted"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "schema": "public",
+        "table": "quotations",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "rfq_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.body.rfqId }}"
+            }
+          ]
+        }
+      },
+      "id": "get-quotations",
+      "name": "Fetch All Quotations",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Build a summary table for all quotations\nconst quotations = $input.all();\nconst rfqId = $node['Webhook: QCS Submitted'].json.body.rfqId;\nconst project = $node['Webhook: QCS Submitted'].json.body.project;\nconst budget = $node['Webhook: QCS Submitted'].json.body.budget;\nconst buyer = $node['Webhook: QCS Submitted'].json.body.buyer;\nconst qcsId = $node['Webhook: QCS Submitted'].json.body.qcsId;\n\n// HTML-escape helper to prevent XSS in the generated email\nfunction esc(str) {\n  return String(str ?? '')\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;')\n    .replace(/'/g, '&#39;');\n}\n\nif (quotations.length === 0) {\n  return [{ json: { tableHtml: '<p>No quotations found.</p>', rfqId, project, budget, buyer, qcsId } }];\n}\n\nconst sorted = quotations\n  .map(q => q.json)\n  .sort((a, b) => (a.total_price || 0) - (b.total_price || 0));\n\nconst bestPrice = sorted[0];\nconst fastestDelivery = [...quotations.map(q => q.json)].sort((a, b) => (a.delivery_time || 99) - (b.delivery_time || 99))[0];\n\nlet rows = sorted.map((q, i) => {\n  const tag = i === 0 ? ' ⭐ Best Price' : (q.supplier_id === fastestDelivery.supplier_id ? ' ⚡ Fastest Delivery' : '');\n  return `<tr>\n    <td>${esc(q.supplier_id)}${tag}</td>\n    <td>€${(q.total_price || 0).toLocaleString()}</td>\n    <td>${esc(q.delivery_time || '-')} weeks</td>\n    <td>${esc(q.payment_terms || '-')}</td>\n    <td>${esc(q.incoterms || '-')}</td>\n  </tr>`;\n}).join('');\n\nconst savings = budget - (bestPrice.total_price || 0);\nconst savingsPct = budget > 0 ? ((savings / budget) * 100).toFixed(1) : '0';\n\nconst tableHtml = `\n<h3>Quotation Comparison – RFQ ${esc(rfqId)} (${esc(project)})</h3>\n<table border='1' cellpadding='6' cellspacing='0' style='border-collapse:collapse;width:100%'>\n  <thead style='background:#f0f0f0'>\n    <tr><th>Supplier</th><th>Total Price</th><th>Delivery</th><th>Payment Terms</th><th>Incoterms</th></tr>\n  </thead>\n  <tbody>${rows}</tbody>\n</table>\n<br>\n<p><strong>Budget:</strong> €${budget.toLocaleString()}</p>\n<p><strong>Best Price:</strong> €${(bestPrice.total_price || 0).toLocaleString()} (${esc(bestPrice.supplier_id)})</p>\n<p><strong>Potential Savings:</strong> €${savings.toLocaleString()} (${savingsPct}%)</p>\n<p><strong>Fastest Delivery:</strong> ${esc(fastestDelivery.delivery_time)} weeks (${esc(fastestDelivery.supplier_id)})</p>\n<p><strong>Buyer:</strong> ${esc(buyer)}</p>\n<p><strong>QCS ID:</strong> ${esc(qcsId)}</p>\n`;\n\nreturn [{ json: { tableHtml, rfqId, project, budget, buyer, qcsId } }];"
+      },
+      "id": "build-summary",
+      "name": "Build Quotation Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@thyssenkrupp.com",
+        "toEmail": "={{ $node['Webhook: QCS Submitted'].json.body.hopEmail }}",
+        "subject": "=Action Required: Quotations Ready for Approval – {{ $json.project }}",
+        "emailFormat": "html",
+        "message": "=<h2>Quotation Comparison Sheet Ready for Review</h2>\n<p>Dear Head of Procurement,</p>\n<p>All quotations for the following RFQ have been collected and are ready for your approval:</p>\n{{ $json.tableHtml }}\n<br>\n<p><a href='{{ $env.APP_URL }}/' style='background:#1a73e8;color:#fff;padding:10px 20px;text-decoration:none;border-radius:4px;display:inline-block;'>Review QCS in Dashboard →</a></p>\n<hr>\n<p style='font-size:12px;color:#888;'>This is an automated notification from the ThyssenKrupp Procurement System.</p>"
+      },
+      "id": "email-hop",
+      "name": "Email HoP",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "email_logs",
+        "columns": "recipient_email, recipient_role, email_type, request_id, subject, status",
+        "additionalFields": {
+          "recipient_email": "={{ $node['Webhook: QCS Submitted'].json.body.hopEmail }}",
+          "recipient_role": "hop",
+          "email_type": "quotations_ready",
+          "request_id": "={{ $json.rfqId }}",
+          "subject": "=Action Required: Quotations Ready for Approval – {{ $json.project }}",
+          "status": "sent"
+        }
+      },
+      "id": "log-hop-email",
+      "name": "Log HoP Email",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "notifications",
+        "columns": "id, role, rfq_id, qcs_id, title, message, type, read",
+        "additionalFields": {
+          "id": "=not-qcs-{{ $json.rfqId }}-{{ $now.toMillis() }}",
+          "role": "hop",
+          "rfq_id": "={{ $json.rfqId }}",
+          "qcs_id": "={{ $json.qcsId }}",
+          "title": "=Quotations Ready: {{ $json.project }}",
+          "message": "=All quotations for RFQ {{ $json.rfqId }} are ready. Please review and approve the QCS.",
+          "type": "qcs",
+          "read": false
+        }
+      },
+      "id": "notify-hop",
+      "name": "Real-time Notification to HoP",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"ok\":true}"
+      },
+      "id": "respond",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1560, 300]
+    }
+  ],
+  "connections": {
+    "Webhook: QCS Submitted": {
+      "main": [[{ "node": "Fetch All Quotations", "type": "main", "index": 0 }]]
+    },
+    "Fetch All Quotations": {
+      "main": [[{ "node": "Build Quotation Summary", "type": "main", "index": 0 }]]
+    },
+    "Build Quotation Summary": {
+      "main": [[{ "node": "Email HoP", "type": "main", "index": 0 }]]
+    },
+    "Email HoP": {
+      "main": [[{ "node": "Log HoP Email", "type": "main", "index": 0 }]]
+    },
+    "Log HoP Email": {
+      "main": [[{ "node": "Real-time Notification to HoP", "type": "main", "index": 0 }]]
+    },
+    "Real-time Notification to HoP": {
+      "main": [[{ "node": "Respond OK", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["qcs", "hop", "email", "quotation-summary"],
+  "meta": {
+    "description": "Triggered when Procurement submits a QCS to HoP. Fetches all quotations from Supabase, builds a price-comparison summary table, emails HoP, logs the email, and sends a real-time notification."
+  }
+}

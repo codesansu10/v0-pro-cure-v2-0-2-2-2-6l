@@ -17,6 +17,7 @@ import { RFQForm } from "./rfq-form";
 import { ChatPanel } from "./chat-panel";
 import { Plus, MessageSquare, Edit, FileText } from "lucide-react";
 import { ActivityFeed } from "./activity-feed";
+import { EmailLogsPanel } from "./email-logs-panel";
 
 export function EngineerDashboard() {
   const { state, getCurrentUser } = useStore();
@@ -198,6 +199,8 @@ export function EngineerDashboard() {
       {chatRFQId && <ChatPanel rfqId={chatRFQId} />}
 
       <ActivityFeed />
+
+      <EmailLogsPanel compact />
 
       {showForm && (
         <RFQForm

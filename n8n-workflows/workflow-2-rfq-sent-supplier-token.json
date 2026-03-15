@@ -1,0 +1,110 @@
+{
+  "name": "Workflow 2: RFQ Sent to Suppliers — Token Email per Supplier",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "supplier-invitation",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-supplier-invitation",
+      "name": "Webhook: Supplier Invitation",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "supplier-invitation"
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@thyssenkrupp.com",
+        "toEmail": "={{ $json.body.supplierEmail }}",
+        "subject": "=RFQ Invitation: {{ $json.body.project }} – {{ $json.body.component }}",
+        "emailFormat": "html",
+        "message": "=<h2>Request for Quotation</h2>\n<p>Dear {{ $json.body.supplierName }},</p>\n<p>ThyssenKrupp invites you to submit a quotation for the following requirement:</p>\n<table border='1' cellpadding='6' cellspacing='0'>\n  <tr><td><strong>Project</strong></td><td>{{ $json.body.project }}</td></tr>\n  <tr><td><strong>Component</strong></td><td>{{ $json.body.component }}</td></tr>\n  <tr><td><strong>Required Delivery</strong></td><td>{{ $json.body.deliveryTime }} weeks</td></tr>\n  <tr><td><strong>Budget (indicative)</strong></td><td>€{{ $json.body.budget }}</td></tr>\n</table>\n<br>\n<p>Access your personalised supplier portal using the secure link below (valid for <strong>30 days</strong>):</p>\n<p><a href='{{ $json.body.accessUrl }}' style='background:#1a73e8;color:#fff;padding:10px 20px;text-decoration:none;border-radius:4px;display:inline-block;'>Open My Dashboard →</a></p>\n<p style='font-size:12px;color:#888;'>This link is unique to your company. Do not share it. It expires in 30 days.</p>\n<hr>\n<p>For questions contact: {{ $json.body.procurementContact }}</p>"
+      },
+      "id": "send-email-supplier",
+      "name": "Send Token Email to Supplier",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "email_logs",
+        "columns": "recipient_email, recipient_role, email_type, request_id, subject, status",
+        "additionalFields": {
+          "recipient_email": "={{ $json.body.supplierEmail }}",
+          "recipient_role": "supplier",
+          "email_type": "rfq_sent",
+          "request_id": "={{ $json.body.rfqId }}",
+          "subject": "=RFQ Invitation: {{ $json.body.project }} – {{ $json.body.component }}",
+          "status": "sent"
+        }
+      },
+      "id": "log-supplier-email",
+      "name": "Log Email in Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "notifications",
+        "columns": "id, role, rfq_id, supplier_id, title, message, type, read",
+        "additionalFields": {
+          "id": "=not-{{ $json.body.rfqId }}-{{ $json.body.supplierId }}-{{ $now.toMillis() }}",
+          "role": "engineer",
+          "rfq_id": "={{ $json.body.rfqId }}",
+          "supplier_id": "={{ $json.body.supplierId }}",
+          "title": "=RFQ Sent to {{ $json.body.supplierName }}",
+          "message": "=RFQ {{ $json.body.rfqId }} has been sent to {{ $json.body.supplierName }} via email.",
+          "type": "rfq",
+          "read": false
+        }
+      },
+      "id": "notify-engineer",
+      "name": "Notify Engineer (Real-time)",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"ok\":true}"
+      },
+      "id": "respond",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Webhook: Supplier Invitation": {
+      "main": [[{ "node": "Send Token Email to Supplier", "type": "main", "index": 0 }]]
+    },
+    "Send Token Email to Supplier": {
+      "main": [[{ "node": "Log Email in Supabase", "type": "main", "index": 0 }]]
+    },
+    "Log Email in Supabase": {
+      "main": [[{ "node": "Notify Engineer (Real-time)", "type": "main", "index": 0 }]]
+    },
+    "Notify Engineer (Real-time)": {
+      "main": [[{ "node": "Respond OK", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["supplier", "email", "token", "rfq"],
+  "meta": {
+    "description": "Triggered once per supplier when procurement sends an RFQ. Generates and sends a unique 30-day token link email to the supplier, logs the email, and notifies the engineer."
+  }
+}
