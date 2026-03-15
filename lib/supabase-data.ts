@@ -1,5 +1,6 @@
 import { supabase } from "./supabaseClient";
 import type {
+  User,
   RFQ,
   Supplier,
   RFQSupplier,
@@ -86,14 +87,27 @@ function fromSupabaseSupplier(row: Record<string, unknown>): Supplier {
     contactPerson: (row.contact_name as string) || "",
     email: (row.email as string) || "",
     commodityFocus: (row.company as string) || "",
-    status: "Approved" as const,
+    status: (["Approved", "Pending"].includes(row.status as string) ? row.status : "Approved") as "Approved" | "Pending",
     rating: (row.rating as "A" | "B" | "C") || "B",
     role,
-    approved: true,
-    capacityConfirmed: true,
-    technicalCompliance: true,
-    commercialSpecCompliant: true,
-    riskScore: 20,
+    approved: row.approved !== undefined ? (row.approved as boolean) : true,
+    capacityConfirmed: row.capacity_confirmed !== undefined ? (row.capacity_confirmed as boolean) : true,
+    technicalCompliance: row.technical_compliance !== undefined ? (row.technical_compliance as boolean) : true,
+    commercialSpecCompliant: row.commercial_spec_compliant !== undefined ? (row.commercial_spec_compliant as boolean) : true,
+    riskScore: (row.risk_score as number) ?? 20,
+    sccCodes: (row.scc_codes as string[]) || undefined,
+    materialGroups: (row.material_groups as string[]) || undefined,
+    country: (row.country as string) || undefined,
+    segment: (row.segment as Supplier["segment"]) || undefined,
+    purchasingBlock: (row.purchasing_block as boolean) || undefined,
+    riskAssessmentResult: (row.risk_assessment_result as "A" | "B" | "C") || undefined,
+    creditCheckScore: (row.credit_check_score as number) || undefined,
+    sgpTotalScore: (row.sgp_total_score as number) || undefined,
+    supplierEvaluationScore: (row.supplier_evaluation_score as number) || undefined,
+    sustainabilityAuditScore: (row.sustainability_audit_score as number) || undefined,
+    qmCertExpiry: (row.qm_cert_expiry as string) || undefined,
+    iso14001Expiry: (row.iso14001_expiry as string) || undefined,
+    iso45001Expiry: (row.iso45001_expiry as string) || undefined,
   };
 }
 
@@ -101,7 +115,7 @@ export function fromSupabaseRFQSupplierRow(row: Record<string, unknown>): RFQSup
   return {
     rfqId: row.rfq_id as string,
     supplierId: row.supplier_id as string,
-    assignedAt: new Date().toISOString(),
+    assignedAt: (row.assigned_at as string) || new Date().toISOString(),
     status: (row.status as RFQSupplierStatus) || "RFQ Received",
     quoted: (row.quoted as boolean) || false,
   };
@@ -125,6 +139,9 @@ export function fromSupabaseQuotationRow(row: Record<string, unknown>): Quotatio
     submittedAt: (row.created_at as string) || new Date().toISOString(),
     quotationPdfUrl: (row.quotation_pdf_url as string) || undefined,
     supportingDocsUrl: (row.supporting_docs_url as string) || undefined,
+    negotiationRound1: (row.negotiation_round1 as number) || undefined,
+    negotiationRound2: (row.negotiation_round2 as number) || undefined,
+    finalAwardValue: (row.final_award_value as number) || undefined,
   };
 }
 
@@ -234,6 +251,7 @@ export async function insertRFQSupplier(assignment: RFQSupplier): Promise<boolea
     supplier_id: assignment.supplierId,
     status: assignment.status,
     quoted: assignment.quoted,
+    assigned_at: assignment.assignedAt || new Date().toISOString(),
   };
   const { error } = await supabase.from("rfq_suppliers").insert(payload).select();
   if (error) {
@@ -257,6 +275,9 @@ export async function insertQuotation(quotation: Omit<Quotation, "lineItems">): 
     notes: quotation.comments || "",
     quotation_pdf_url: quotation.quotationPdfUrl || null,
     supporting_docs_url: quotation.supportingDocsUrl || null,
+    negotiation_round1: quotation.negotiationRound1 ?? null,
+    negotiation_round2: quotation.negotiationRound2 ?? null,
+    final_award_value: quotation.finalAwardValue ?? null,
     created_at: quotation.submittedAt,
   };
   const { data, error } = await supabase
@@ -578,6 +599,9 @@ export async function updateQuotationInSupabase(id: string, updates: Partial<Quo
   if (updates.comments !== undefined) payload.notes = updates.comments;
   if (updates.quotationPdfUrl !== undefined) payload.quotation_pdf_url = updates.quotationPdfUrl;
   if (updates.supportingDocsUrl !== undefined) payload.supporting_docs_url = updates.supportingDocsUrl;
+  if (updates.negotiationRound1 !== undefined) payload.negotiation_round1 = updates.negotiationRound1;
+  if (updates.negotiationRound2 !== undefined) payload.negotiation_round2 = updates.negotiationRound2;
+  if (updates.finalAwardValue !== undefined) payload.final_award_value = updates.finalAwardValue;
 
   const { error } = await supabase.from("quotations").update(payload).eq("id", id).select();
   if (error) {
@@ -587,7 +611,7 @@ export async function updateQuotationInSupabase(id: string, updates: Partial<Quo
   return true;
 }
 
-// ===== SUPPLIER INSERT =====
+// ===== SUPPLIER INSERT / UPDATE =====
 
 export async function insertSupplier(supplier: Supplier): Promise<boolean> {
   if (!supabase) return false;
@@ -599,10 +623,66 @@ export async function insertSupplier(supplier: Supplier): Promise<boolean> {
     company: supplier.commodityFocus,
     rating: supplier.rating,
     role: supplier.role,
+    status: supplier.status,
+    approved: supplier.approved,
+    capacity_confirmed: supplier.capacityConfirmed,
+    technical_compliance: supplier.technicalCompliance,
+    commercial_spec_compliant: supplier.commercialSpecCompliant,
+    risk_score: supplier.riskScore,
+    scc_codes: supplier.sccCodes || null,
+    material_groups: supplier.materialGroups || null,
+    country: supplier.country || null,
+    segment: supplier.segment || null,
+    purchasing_block: supplier.purchasingBlock || false,
+    risk_assessment_result: supplier.riskAssessmentResult || null,
+    credit_check_score: supplier.creditCheckScore ?? null,
+    sgp_total_score: supplier.sgpTotalScore ?? null,
+    supplier_evaluation_score: supplier.supplierEvaluationScore ?? null,
+    sustainability_audit_score: supplier.sustainabilityAuditScore ?? null,
+    qm_cert_expiry: supplier.qmCertExpiry || null,
+    iso14001_expiry: supplier.iso14001Expiry || null,
+    iso45001_expiry: supplier.iso45001Expiry || null,
   };
   const { error } = await supabase.from("suppliers").upsert(payload, { onConflict: "id" }).select();
   if (error) {
     console.error("[Supabase] Error inserting supplier:", error.message);
+    return false;
+  }
+  return true;
+}
+
+export async function updateSupplier(id: string, updates: Partial<Supplier>): Promise<boolean> {
+  if (!supabase) return false;
+  const payload: Record<string, unknown> = {};
+  if (updates.name !== undefined) payload.name = updates.name;
+  if (updates.contactPerson !== undefined) payload.contact_name = updates.contactPerson;
+  if (updates.email !== undefined) payload.email = updates.email;
+  if (updates.commodityFocus !== undefined) payload.company = updates.commodityFocus;
+  if (updates.rating !== undefined) payload.rating = updates.rating;
+  if (updates.role !== undefined) payload.role = updates.role;
+  if (updates.status !== undefined) payload.status = updates.status;
+  if (updates.approved !== undefined) payload.approved = updates.approved;
+  if (updates.capacityConfirmed !== undefined) payload.capacity_confirmed = updates.capacityConfirmed;
+  if (updates.technicalCompliance !== undefined) payload.technical_compliance = updates.technicalCompliance;
+  if (updates.commercialSpecCompliant !== undefined) payload.commercial_spec_compliant = updates.commercialSpecCompliant;
+  if (updates.riskScore !== undefined) payload.risk_score = updates.riskScore;
+  if (updates.sccCodes !== undefined) payload.scc_codes = updates.sccCodes;
+  if (updates.materialGroups !== undefined) payload.material_groups = updates.materialGroups;
+  if (updates.country !== undefined) payload.country = updates.country;
+  if (updates.segment !== undefined) payload.segment = updates.segment;
+  if (updates.purchasingBlock !== undefined) payload.purchasing_block = updates.purchasingBlock;
+  if (updates.riskAssessmentResult !== undefined) payload.risk_assessment_result = updates.riskAssessmentResult;
+  if (updates.creditCheckScore !== undefined) payload.credit_check_score = updates.creditCheckScore;
+  if (updates.sgpTotalScore !== undefined) payload.sgp_total_score = updates.sgpTotalScore;
+  if (updates.supplierEvaluationScore !== undefined) payload.supplier_evaluation_score = updates.supplierEvaluationScore;
+  if (updates.sustainabilityAuditScore !== undefined) payload.sustainability_audit_score = updates.sustainabilityAuditScore;
+  if (updates.qmCertExpiry !== undefined) payload.qm_cert_expiry = updates.qmCertExpiry;
+  if (updates.iso14001Expiry !== undefined) payload.iso14001_expiry = updates.iso14001Expiry;
+  if (updates.iso45001Expiry !== undefined) payload.iso45001_expiry = updates.iso45001Expiry;
+
+  const { error } = await supabase.from("suppliers").update(payload).eq("id", id).select();
+  if (error) {
+    console.error("[Supabase] Error updating supplier:", error.message);
     return false;
   }
   return true;
@@ -632,6 +712,58 @@ export async function updateRFQFields(rfqId: string, updates: Record<string, unk
   const { error } = await supabase.from("rfqs").update(payload).eq("rfq_number", rfqId).select();
   if (error) {
     console.error("[Supabase] Error updating RFQ fields:", error.message);
+    return false;
+  }
+  return true;
+}
+
+// ===== USERS FUNCTIONS =====
+
+export function fromSupabaseUserRow(row: Record<string, unknown>): User {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    role: row.role as User["role"],
+    email: row.email as string,
+  };
+}
+
+export async function fetchUsers(): Promise<User[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.from("users").select("*").order("name");
+  if (error) {
+    console.error("[Supabase] Error fetching users:", error.message);
+    return [];
+  }
+  return (data || []).map(fromSupabaseUserRow);
+}
+
+export async function insertUser(user: User): Promise<boolean> {
+  if (!supabase) return false;
+  const payload = {
+    id: user.id,
+    name: user.name,
+    role: user.role,
+    email: user.email,
+  };
+  const { error } = await supabase.from("users").upsert(payload, { onConflict: "id" }).select();
+  if (error) {
+    console.error("[Supabase] Error inserting user:", error.message);
+    return false;
+  }
+  return true;
+}
+
+export async function updateUser(id: string, updates: Partial<User>): Promise<boolean> {
+  if (!supabase) return false;
+  const payload: Record<string, unknown> = {};
+  if (updates.name !== undefined) payload.name = updates.name;
+  if (updates.role !== undefined) payload.role = updates.role;
+  if (updates.email !== undefined) payload.email = updates.email;
+
+  const { error } = await supabase.from("users").update(payload).eq("id", id).select();
+  if (error) {
+    console.error("[Supabase] Error updating user:", error.message);
     return false;
   }
   return true;
