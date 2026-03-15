@@ -1,7 +1,6 @@
 "use client";
 
 import { useStore } from "@/lib/store";
-import { triggerQCSSubmitted } from "@/lib/n8n-webhooks";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -60,16 +59,6 @@ export function QCSView() {
       message: `QCS ${qcsId} for ${rfq?.project || "Unknown"} - ${rfq?.component || "Unknown"} has been submitted for your approval.`,
       type: "qcs",
     });
-    // Trigger n8n webhook
-    triggerQCSSubmitted({
-      qcsId,
-      rfqId: qcs.rfqId,
-      project: qcs.project,
-      budget: qcs.budget,
-      buyer: qcs.buyer,
-      procurementEmail: "a.schmidt@thyssenkrupp.com",
-      hopEmail: "k.weber@thyssenkrupp.com",
-    }).catch(() => {});
   }
 
   function exportToCSV(qcsId: string) {
