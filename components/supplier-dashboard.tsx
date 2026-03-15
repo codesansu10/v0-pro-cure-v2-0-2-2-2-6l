@@ -392,7 +392,7 @@ export function SupplierDashboard() {
         open={!!quoteDialog}
         onOpenChange={() => setQuoteDialog(null)}
       >
-        <DialogContent className="max-w-5xl flex flex-col max-h-[95vh] p-0 gap-0">
+        <DialogContent className="max-w-7xl flex flex-col max-h-[95vh] p-0 gap-0">
           <DialogHeader className="px-8 pt-7 pb-5 border-b border-border shrink-0">
             <DialogTitle className="text-lg font-semibold">
               Submit Quotation — {quoteDialog}
