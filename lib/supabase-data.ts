@@ -550,6 +550,49 @@ export async function updateNotificationRead(id: string, read: boolean): Promise
   return true;
 }
 
+// ===== QUOTATION UPDATE =====
+
+export async function updateQuotationInSupabase(id: string, updates: Partial<Quotation>): Promise<boolean> {
+  if (!supabase) return false;
+  const payload: Record<string, unknown> = {};
+  if (updates.totalPrice !== undefined) payload.total_price = updates.totalPrice;
+  if (updates.bonusMalus !== undefined) payload.bonus_malus = updates.bonusMalus;
+  if (updates.deliveryTime !== undefined) payload.delivery_time = updates.deliveryTime;
+  if (updates.paymentTerms !== undefined) payload.payment_terms = updates.paymentTerms;
+  if (updates.incoterms !== undefined) payload.incoterms = updates.incoterms;
+  if (updates.comments !== undefined) payload.notes = updates.comments;
+  if (updates.quotationPdfUrl !== undefined) payload.quotation_pdf_url = updates.quotationPdfUrl;
+  if (updates.supportingDocsUrl !== undefined) payload.supporting_docs_url = updates.supportingDocsUrl;
+
+  const { error } = await supabase.from("quotations").update(payload).eq("id", id).select();
+  if (error) {
+    console.error("[Supabase] Error updating quotation:", error.message);
+    return false;
+  }
+  return true;
+}
+
+// ===== SUPPLIER INSERT =====
+
+export async function insertSupplier(supplier: Supplier): Promise<boolean> {
+  if (!supabase) return false;
+  const payload = {
+    id: supplier.id,
+    name: supplier.name,
+    contact_name: supplier.contactPerson,
+    email: supplier.email,
+    company: supplier.commodityFocus,
+    rating: supplier.rating,
+    role: supplier.role,
+  };
+  const { error } = await supabase.from("suppliers").upsert(payload, { onConflict: "id" }).select();
+  if (error) {
+    console.error("[Supabase] Error inserting supplier:", error.message);
+    return false;
+  }
+  return true;
+}
+
 // ===== GENERIC RFQ UPDATE =====
 
 export async function updateRFQFields(rfqId: string, updates: Record<string, unknown>): Promise<boolean> {

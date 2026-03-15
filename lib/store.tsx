@@ -2,13 +2,15 @@
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from "react";
 import type { AppState, Role, RFQ, Quotation, QCS, Message, RFQSupplier, RFQSupplierStatus, Supplier, Notification } from "./types";
-import { triggerRFQSubmitted } from "./n8n-webhooks";
+import { triggerRFQSubmitted, triggerQuotationSubmitted } from "./n8n-webhooks";
 import {
   insertRFQ,
   insertRFQSupplier,
   insertQuotation,
   insertQuotationItems,
   updateRFQSupplierStatus,
+  updateQuotationInSupabase,
+  insertSupplier,
   fetchRFQs,
   fetchSuppliers,
   fetchRFQSuppliers,
@@ -394,33 +396,38 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const id = generateId("RFQ");
       const now = new Date().toISOString();
       const newRFQ: RFQ = { ...rfq, id, createdAt: now, updatedAt: now };
-      
-      // Update local state immediately
-      setState((prev) => ({
-        ...prev,
-        rfqs: [...prev.rfqs, newRFQ],
-      }));
-      
-      // Persist to Supabase
-      insertRFQ(newRFQ).then((success) => {
+
+      (async () => {
+        // 1. Save to Supabase FIRST
+        const success = await insertRFQ(newRFQ);
         if (!success) {
           console.error("[Supabase] Failed to persist RFQ:", id);
         }
-      });
 
-      // Trigger n8n webhook for submitted RFQs
-      if (rfq.status === "Submitted") {
-        const engineer = defaultUsers.find((u) => u.id === rfq.createdBy);
-        triggerRFQSubmitted({
-          rfqId: id,
-          project: rfq.project,
-          component: rfq.component,
-          budget: rfq.budget,
-          engineerName: engineer?.name ?? "Unknown Engineer",
-          engineerEmail: engineer?.email ?? "m.mueller@thyssenkrupp.com",
-          procurementEmail: "a.schmidt@thyssenkrupp.com",
-        }).catch(() => {});
-      }
+        // 2. Update local state (realtime will also sync other clients)
+        setState((prev) => ({
+          ...prev,
+          rfqs: prev.rfqs.some((r) => r.id === id) ? prev.rfqs : [...prev.rfqs, newRFQ],
+        }));
+
+        // 3. Trigger n8n webhook AFTER DB confirmation
+        if (success && rfq.status === "Submitted") {
+          const engineer = defaultUsers.find((u) => u.id === rfq.createdBy);
+          try {
+            await triggerRFQSubmitted({
+              rfqId: id,
+              project: rfq.project,
+              component: rfq.component,
+              budget: rfq.budget,
+              engineerName: engineer?.name ?? "Unknown Engineer",
+              engineerEmail: engineer?.email ?? "m.mueller@thyssenkrupp.com",
+              procurementEmail: "a.schmidt@thyssenkrupp.com",
+            });
+          } catch (err) {
+            console.error("[n8n] Failed to trigger RFQ webhook:", err);
+          }
+        }
+      })();
 
       return id;
     },
@@ -490,38 +497,79 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const id = generateId("QOT");
       const now = new Date().toISOString();
       const newQuotation: Quotation = { ...quotation, id, submittedAt: now };
-      
-      // Update local state
-      setState((prev) => ({
-        ...prev,
-        quotations: [...prev.quotations, newQuotation],
-      }));
 
-      // Persist to Supabase
-      insertQuotation(newQuotation).then((quotationId) => {
-        if (quotationId) {
-          if (newQuotation.lineItems && newQuotation.lineItems.length > 0) {
-            insertQuotationItems(id, newQuotation.lineItems).then((success) => {
-              if (!success) {
-                console.error("[Supabase] Failed to persist quotation items");
-              }
-            });
-          }
-        } else {
+      (async () => {
+        // 1. Save quotation to Supabase FIRST
+        const quotationId = await insertQuotation(newQuotation);
+        if (!quotationId) {
           console.error("[Supabase] Failed to persist quotation:", id);
         }
-      });
+
+        // 2. Save line items if any
+        if (quotationId && newQuotation.lineItems && newQuotation.lineItems.length > 0) {
+          const itemsSuccess = await insertQuotationItems(id, newQuotation.lineItems);
+          if (!itemsSuccess) {
+            console.error("[Supabase] Failed to persist quotation items");
+          }
+        }
+
+        // 3. Update RFQ-Supplier status in Supabase
+        if (quotationId) {
+          await updateRFQSupplierStatus(newQuotation.rfqId, newQuotation.supplierId, {
+            status: "Quotation Submitted",
+            quoted: true,
+          });
+        }
+
+        // 4. Update local state
+        setState((prev) => ({
+          ...prev,
+          quotations: prev.quotations.some((q) => q.id === id)
+            ? prev.quotations
+            : [...prev.quotations, newQuotation],
+          rfqSuppliers: prev.rfqSuppliers.map((rs) =>
+            rs.rfqId === newQuotation.rfqId && rs.supplierId === newQuotation.supplierId
+              ? { ...rs, status: "Quotation Submitted" as RFQSupplierStatus, quoted: true }
+              : rs
+          ),
+        }));
+
+        // 5. Trigger n8n webhook AFTER DB confirmation
+        if (quotationId) {
+          const supplier = defaultSuppliers.find((s) => s.id === newQuotation.supplierId);
+          try {
+            await triggerQuotationSubmitted({
+              rfqId: newQuotation.rfqId,
+              supplierId: newQuotation.supplierId,
+              supplierName: supplier?.name ?? "Unknown Supplier",
+              supplierEmail: supplier?.email ?? "",
+              totalPrice: newQuotation.totalPrice,
+              procurementEmail: "a.schmidt@thyssenkrupp.com",
+              engineerEmail: "m.mueller@thyssenkrupp.com",
+            });
+          } catch (err) {
+            console.error("[n8n] Failed to trigger quotation webhook:", err);
+          }
+        }
+      })();
     },
     [generateId]
   );
 
   const updateQuotation = useCallback((id: string, updates: Partial<Quotation>) => {
-    setState((prev) => ({
-      ...prev,
-      quotations: prev.quotations.map((q) =>
-        q.id === id ? { ...q, ...updates } : q
-      ),
-    }));
+    (async () => {
+      // 1. Persist to Supabase first
+      const success = await updateQuotationInSupabase(id, updates);
+      if (!success) console.error("[Supabase] Failed to persist quotation update:", id);
+
+      // 2. Update local state
+      setState((prev) => ({
+        ...prev,
+        quotations: prev.quotations.map((q) =>
+          q.id === id ? { ...q, ...updates } : q
+        ),
+      }));
+    })();
   }, []);
 
   const addQCS = useCallback(
@@ -570,10 +618,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const addSupplier = useCallback(
     (supplier: Omit<Supplier, "id">) => {
       const id = generateId("SUP");
-      setState((prev) => ({
-        ...prev,
-        suppliers: [...prev.suppliers, { ...supplier, id }],
-      }));
+      const newSupplier: Supplier = { ...supplier, id };
+      (async () => {
+        // 1. Persist to Supabase first
+        const success = await insertSupplier(newSupplier);
+        if (!success) console.error("[Supabase] Failed to persist supplier:", id);
+
+        // 2. Update local state
+        setState((prev) => ({
+          ...prev,
+          suppliers: prev.suppliers.some((s) => s.id === id) ? prev.suppliers : [...prev.suppliers, newSupplier],
+        }));
+      })();
     },
     [generateId]
   );
