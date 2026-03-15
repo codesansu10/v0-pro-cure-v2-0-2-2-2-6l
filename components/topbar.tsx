@@ -6,6 +6,7 @@ import type { Role } from "@/lib/types";
 import { Bell, User } from "lucide-react";
 import { TkLogo } from "@/components/tk-logo";
 import { NotificationsPanel } from "@/components/notifications-panel";
+import { UserLinkDisplay } from "@/components/user-link-display";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -60,6 +61,7 @@ export function Topbar() {
       </div>
 
       <div className="flex items-center gap-4">
+        <UserLinkDisplay />
         <Select
           value={currentRole}
           onValueChange={(v) => setCurrentRole(v as Role)}
