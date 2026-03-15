@@ -13,7 +13,7 @@ import {
   fetchRFQs,
   fetchSuppliers,
   fetchRFQSuppliers,
-  fetchQuotationsWithItems,
+  fetchAllQuotationsWithItems,
   fetchQCS,
   insertQCS as insertQCSToSupabase,
   updateQCSInSupabase,
@@ -23,14 +23,8 @@ import {
   insertNotification as insertNotificationToSupabase,
   updateNotificationRead,
   updateRFQFields,
-  fromSupabaseRFQRow,
-  fromSupabaseRFQSupplierRow,
-  fromSupabaseQuotationRow,
-  fromSupabaseQCSRow,
-  fromSupabaseMessageRow,
-  fromSupabaseNotificationRow,
 } from "./supabase-data";
-import { supabase } from "./supabaseClient";
+import { setupRealtimeSubscriptions } from "./realtime";
 
 const defaultUsers = [
   { id: "USR-001", name: "Max Mueller", role: "engineer" as Role, email: "m.mueller@thyssenkrupp.com" },
@@ -215,6 +209,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [realtimeConnected, setRealtimeConnected] = useState(false);
   const counterRef = useRef(1);
+  // Track realtime connection in a ref so the polling fallback doesn't need it as a dep
+  const realtimeConnectedRef = useRef(false);
 
   const generateId = useCallback((prefix: string) => {
     const num = counterRef.current++;
@@ -225,19 +221,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function loadFromSupabase() {
       try {
-        const [rfqs, suppliers, rfqSuppliers, qcsData, messagesData, notificationsData] = await Promise.all([
+        const [rfqs, suppliers, rfqSuppliers, quotations, qcsData, messagesData, notificationsData] = await Promise.all([
           fetchRFQs(),
           fetchSuppliers(),
           fetchRFQSuppliers(),
+          fetchAllQuotationsWithItems(),
           fetchQCS(),
           fetchMessages(),
           fetchNotifications(),
         ]);
-
-        // Load quotations with line items for all RFQs
-        const quotationPromises = rfqs.map((rfq) => fetchQuotationsWithItems(rfq.id));
-        const quotationsArrays = await Promise.all(quotationPromises);
-        const allQuotations = quotationsArrays.flat();
 
         setState((prev) => {
           // Merge Supabase suppliers with defaults — preserve role and other detailed fields
@@ -272,7 +264,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             rfqs: rfqs.length > 0 ? rfqs : prev.rfqs,
             suppliers: mergedSuppliers,
             rfqSuppliers: rfqSuppliers.length > 0 ? rfqSuppliers : prev.rfqSuppliers,
-            quotations: allQuotations.length > 0 ? allQuotations : prev.quotations,
+            quotations: quotations.length > 0 ? quotations : prev.quotations,
             qcs: qcsData.length > 0 ? qcsData : prev.qcs,
             messages: messagesData.length > 0 ? messagesData : prev.messages,
             notifications: notificationsData.length > 0 ? notificationsData : prev.notifications,
@@ -287,148 +279,123 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     loadFromSupabase();
   }, []);
 
-  // Set up Supabase Realtime subscriptions for live updates
+  // Set up Supabase Realtime subscriptions for live updates across all concurrent users
   useEffect(() => {
-    if (!supabase) return;
+    const cleanup = setupRealtimeSubscriptions({
+      onRFQInsert: (rfq) => {
+        setState((prev) => {
+          if (prev.rfqs.some((r) => r.id === rfq.id)) return prev;
+          return { ...prev, rfqs: [rfq, ...prev.rfqs] };
+        });
+      },
+      onRFQUpdate: (rfq) => {
+        setState((prev) => ({
+          ...prev,
+          rfqs: prev.rfqs.map((r) => (r.id === rfq.id ? rfq : r)),
+        }));
+      },
+      onRFQSupplierInsert: (assignment) => {
+        setState((prev) => {
+          if (prev.rfqSuppliers.some((rs) => rs.rfqId === assignment.rfqId && rs.supplierId === assignment.supplierId)) return prev;
+          return { ...prev, rfqSuppliers: [...prev.rfqSuppliers, assignment] };
+        });
+      },
+      onRFQSupplierUpdate: (assignment) => {
+        setState((prev) => ({
+          ...prev,
+          rfqSuppliers: prev.rfqSuppliers.map((rs) =>
+            rs.rfqId === assignment.rfqId && rs.supplierId === assignment.supplierId ? assignment : rs
+          ),
+        }));
+      },
+      onQuotationInsert: (quotation) => {
+        setState((prev) => {
+          if (prev.quotations.some((q) => q.id === quotation.id)) return prev;
+          return { ...prev, quotations: [...prev.quotations, quotation] };
+        });
+      },
+      onQuotationUpdate: (quotation) => {
+        setState((prev) => ({
+          ...prev,
+          // Preserve existing lineItems since the UPDATE event doesn't include them
+          quotations: prev.quotations.map((q) => (q.id === quotation.id ? { ...quotation, lineItems: q.lineItems } : q)),
+        }));
+      },
+      onQuotationItemsChange: (quotationId, items) => {
+        setState((prev) => ({
+          ...prev,
+          quotations: prev.quotations.map((q) =>
+            q.id === quotationId ? { ...q, lineItems: items } : q
+          ),
+        }));
+      },
+      onQCSInsert: (qcs) => {
+        setState((prev) => {
+          if (prev.qcs.some((q) => q.id === qcs.id)) return prev;
+          return { ...prev, qcs: [qcs, ...prev.qcs] };
+        });
+      },
+      onQCSUpdate: (qcs) => {
+        setState((prev) => ({
+          ...prev,
+          qcs: prev.qcs.map((q) => (q.id === qcs.id ? qcs : q)),
+        }));
+      },
+      onMessageInsert: (msg) => {
+        setState((prev) => {
+          if (prev.messages.some((m) => m.id === msg.id)) return prev;
+          return { ...prev, messages: [...prev.messages, msg] };
+        });
+      },
+      onNotificationInsert: (notif) => {
+        setState((prev) => {
+          if (prev.notifications.some((n) => n.id === notif.id)) return prev;
+          return { ...prev, notifications: [notif, ...prev.notifications] };
+        });
+      },
+      onNotificationUpdate: (notif) => {
+        setState((prev) => ({
+          ...prev,
+          notifications: prev.notifications.map((n) => (n.id === notif.id ? notif : n)),
+        }));
+      },
+      onConnectionChange: (connected) => {
+        realtimeConnectedRef.current = connected;
+        setRealtimeConnected(connected);
+      },
+    });
+    return cleanup;
+  }, []);
 
-    const channel = supabase
-      .channel("procure-realtime")
-      // RFQs: new requests created by engineers become visible to all roles
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "rfqs" },
-        (payload) => {
-          const newRFQ = fromSupabaseRFQRow(payload.new as Record<string, unknown>);
-          setState((prev) => {
-            if (prev.rfqs.some((r) => r.id === newRFQ.id)) return prev;
-            return { ...prev, rfqs: [newRFQ, ...prev.rfqs] };
-          });
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "rfqs" },
-        (payload) => {
-          const updated = fromSupabaseRFQRow(payload.new as Record<string, unknown>);
-          setState((prev) => ({
-            ...prev,
-            rfqs: prev.rfqs.map((r) => (r.id === updated.id ? updated : r)),
-          }));
-        }
-      )
-      // RFQ-Supplier assignments: procurement sends to supplier → supplier sees in real-time
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "rfq_suppliers" },
-        (payload) => {
-          const assignment = fromSupabaseRFQSupplierRow(payload.new as Record<string, unknown>);
-          setState((prev) => {
-            if (prev.rfqSuppliers.some((rs) => rs.rfqId === assignment.rfqId && rs.supplierId === assignment.supplierId)) return prev;
-            return { ...prev, rfqSuppliers: [...prev.rfqSuppliers, assignment] };
-          });
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "rfq_suppliers" },
-        (payload) => {
-          const updated = fromSupabaseRFQSupplierRow(payload.new as Record<string, unknown>);
-          setState((prev) => ({
-            ...prev,
-            rfqSuppliers: prev.rfqSuppliers.map((rs) =>
-              rs.rfqId === updated.rfqId && rs.supplierId === updated.supplierId ? updated : rs
-            ),
-          }));
-        }
-      )
-      // Quotations: supplier submits quotation → procurement/engineer see it in real-time
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "quotations" },
-        (payload) => {
-          const newQuotation = fromSupabaseQuotationRow(payload.new as Record<string, unknown>);
-          setState((prev) => {
-            if (prev.quotations.some((q) => q.id === newQuotation.id)) return prev;
-            return { ...prev, quotations: [...prev.quotations, newQuotation] };
-          });
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "quotations" },
-        (payload) => {
-          const updated = fromSupabaseQuotationRow(payload.new as Record<string, unknown>);
-          setState((prev) => ({
-            ...prev,
-            quotations: prev.quotations.map((q) => (q.id === updated.id ? updated : q)),
-          }));
-        }
-      )
-      // QCS changes
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "qcs" },
-        (payload) => {
-          const newQCS = fromSupabaseQCSRow(payload.new as Record<string, unknown>);
-          setState((prev) => {
-            if (prev.qcs.some((q) => q.id === newQCS.id)) return prev;
-            return { ...prev, qcs: [newQCS, ...prev.qcs] };
-          });
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "qcs" },
-        (payload) => {
-          const updated = fromSupabaseQCSRow(payload.new as Record<string, unknown>);
-          setState((prev) => ({
-            ...prev,
-            qcs: prev.qcs.map((q) => (q.id === updated.id ? updated : q)),
-          }));
-        }
-      )
-      // Messages: real-time chat updates
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
-        (payload) => {
-          const newMsg = fromSupabaseMessageRow(payload.new as Record<string, unknown>);
-          setState((prev) => {
-            if (prev.messages.some((m) => m.id === newMsg.id)) return prev;
-            return { ...prev, messages: [...prev.messages, newMsg] };
-          });
-        }
-      )
-      // Notifications: real-time alerts for all roles
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "notifications" },
-        (payload) => {
-          const newNotif = fromSupabaseNotificationRow(payload.new as Record<string, unknown>);
-          setState((prev) => {
-            if (prev.notifications.some((n) => n.id === newNotif.id)) return prev;
-            return { ...prev, notifications: [newNotif, ...prev.notifications] };
-          });
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "notifications" },
-        (payload) => {
-          const updated = fromSupabaseNotificationRow(payload.new as Record<string, unknown>);
-          setState((prev) => ({
-            ...prev,
-            notifications: prev.notifications.map((n) => (n.id === updated.id ? updated : n)),
-          }));
-        }
-      )
-      .subscribe((status) => {
-        setRealtimeConnected(status === "SUBSCRIBED");
-      });
-
-    return () => {
-      if (supabase) supabase.removeChannel(channel);
+  // Auto-polling fallback: refresh all data every 30 s when realtime is disconnected
+  useEffect(() => {
+    const poll = async () => {
+      if (realtimeConnectedRef.current) return; // Skip if realtime is active
+      try {
+        const [rfqs, rfqSuppliers, quotations, qcsData, messagesData, notificationsData] = await Promise.all([
+          fetchRFQs(),
+          fetchRFQSuppliers(),
+          fetchAllQuotationsWithItems(),
+          fetchQCS(),
+          fetchMessages(),
+          fetchNotifications(),
+        ]);
+        setState((prev) => ({
+          ...prev,
+          rfqs: rfqs.length > 0 ? rfqs : prev.rfqs,
+          rfqSuppliers: rfqSuppliers.length > 0 ? rfqSuppliers : prev.rfqSuppliers,
+          quotations: quotations.length > 0 ? quotations : prev.quotations,
+          qcs: qcsData.length > 0 ? qcsData : prev.qcs,
+          messages: messagesData.length > 0 ? messagesData : prev.messages,
+          notifications: notificationsData.length > 0 ? notificationsData : prev.notifications,
+        }));
+      } catch (err) {
+        console.error("[Poll] Error refreshing data:", err);
+      }
     };
+
+    const interval = setInterval(poll, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const getCurrentUser = useCallback(() => {
@@ -441,20 +408,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const now = new Date().toISOString();
       const newRFQ: RFQ = { ...rfq, id, createdAt: now, updatedAt: now };
 
-      (async () => {
-        // 1. Save to Supabase FIRST
-        const success = await insertRFQ(newRFQ);
+      // 1. Optimistic update — show immediately to the current user
+      setState((prev) => ({
+        ...prev,
+        rfqs: prev.rfqs.some((r) => r.id === id) ? prev.rfqs : [newRFQ, ...prev.rfqs],
+      }));
+
+      // 2. Persist to Supabase (realtime will sync to all other clients)
+      insertRFQ(newRFQ).then((success) => {
         if (!success) {
           console.error("[Supabase] Failed to persist RFQ:", id);
+          // Roll back the optimistic update
+          setState((prev) => ({
+            ...prev,
+            rfqs: prev.rfqs.filter((r) => r.id !== id),
+          }));
         }
-
-        // 2. Update local state (realtime will also sync other clients)
-        setState((prev) => ({
-          ...prev,
-          rfqs: prev.rfqs.some((r) => r.id === id) ? prev.rfqs : [...prev.rfqs, newRFQ],
-        }));
-
-      })();
+      });
 
       return id;
     },
@@ -525,42 +495,48 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const now = new Date().toISOString();
       const newQuotation: Quotation = { ...quotation, id, submittedAt: now };
 
+      // 1. Optimistic update — show immediately to the current user
+      setState((prev) => ({
+        ...prev,
+        quotations: prev.quotations.some((q) => q.id === id)
+          ? prev.quotations
+          : [...prev.quotations, newQuotation],
+        rfqSuppliers: prev.rfqSuppliers.map((rs) =>
+          rs.rfqId === newQuotation.rfqId && rs.supplierId === newQuotation.supplierId
+            ? { ...rs, status: "Quotation Submitted" as RFQSupplierStatus, quoted: true }
+            : rs
+        ),
+      }));
+
+      // 2. Persist to Supabase (realtime will sync to all other clients)
       (async () => {
-        // 1. Save quotation to Supabase FIRST
         const quotationId = await insertQuotation(newQuotation);
         if (!quotationId) {
           console.error("[Supabase] Failed to persist quotation:", id);
+          // Roll back the optimistic update
+          setState((prev) => ({
+            ...prev,
+            quotations: prev.quotations.filter((q) => q.id !== id),
+            rfqSuppliers: prev.rfqSuppliers.map((rs) =>
+              rs.rfqId === newQuotation.rfqId && rs.supplierId === newQuotation.supplierId
+                ? { ...rs, status: "RFQ Received" as RFQSupplierStatus, quoted: false }
+                : rs
+            ),
+          }));
+          return;
         }
 
-        // 2. Save line items if any
-        if (quotationId && newQuotation.lineItems && newQuotation.lineItems.length > 0) {
+        if (newQuotation.lineItems && newQuotation.lineItems.length > 0) {
           const itemsSuccess = await insertQuotationItems(id, newQuotation.lineItems);
           if (!itemsSuccess) {
             console.error("[Supabase] Failed to persist quotation items");
           }
         }
 
-        // 3. Update RFQ-Supplier status in Supabase
-        if (quotationId) {
-          await updateRFQSupplierStatus(newQuotation.rfqId, newQuotation.supplierId, {
-            status: "Quotation Submitted",
-            quoted: true,
-          });
-        }
-
-        // 4. Update local state
-        setState((prev) => ({
-          ...prev,
-          quotations: prev.quotations.some((q) => q.id === id)
-            ? prev.quotations
-            : [...prev.quotations, newQuotation],
-          rfqSuppliers: prev.rfqSuppliers.map((rs) =>
-            rs.rfqId === newQuotation.rfqId && rs.supplierId === newQuotation.supplierId
-              ? { ...rs, status: "Quotation Submitted" as RFQSupplierStatus, quoted: true }
-              : rs
-          ),
-        }));
-
+        await updateRFQSupplierStatus(newQuotation.rfqId, newQuotation.supplierId, {
+          status: "Quotation Submitted",
+          quoted: true,
+        });
       })();
     },
     [generateId]
