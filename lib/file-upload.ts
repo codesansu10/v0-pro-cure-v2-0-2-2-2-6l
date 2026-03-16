@@ -13,16 +13,16 @@ const ALLOWED_TYPES = [
   "image/jpg",
 ];
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILE_SIZE = 100 * 1024 * 1024 * 1024; // 100GB
 
 export function validateFile(file: File): { valid: boolean; error?: string } {
   if (!ALLOWED_TYPES.includes(file.type)) {
-    return { valid: false, error: `File type not supported: ${file.type}` };
+    return { valid: false, error: `File format not supported` };
   }
   if (file.size > MAX_FILE_SIZE) {
     return {
       valid: false,
-      error: `File too large: ${(file.size / 1024 / 1024).toFixed(2)}MB (max 10MB)`,
+      error: `File upload failed. Please try again.`,
     };
   }
   return { valid: true };
@@ -96,7 +96,7 @@ export async function deleteRFQAttachment(
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return "0 Bytes";
   const k = 1024;
-  const sizes = ["Bytes", "KB", "MB"];
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
 }
@@ -106,5 +106,17 @@ export function getFileIcon(mimeType: string): string {
   if (mimeType.includes("word")) return "📝";
   if (mimeType.includes("sheet") || mimeType.includes("excel")) return "📊";
   if (mimeType.includes("image")) return "🖼️";
+  if (mimeType.includes("video")) return "🎥";
+  if (mimeType.includes("audio")) return "🎵";
   return "📎";
+}
+
+export function downloadFile(url: string, fileName: string): void {
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.target = "_blank";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
