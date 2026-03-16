@@ -1,4 +1,5 @@
 import { supabase } from "./supabaseClient";
+import { updateRFQFields } from "./supabase-data";
 import type { Attachment } from "./types";
 
 // Allowed file types
@@ -78,6 +79,20 @@ export async function uploadRFQAttachment(
   };
 
   return attachment;
+}
+
+/**
+ * Immediately persist the full attachments array for an existing RFQ row in the database.
+ * Should be called after every upload or removal when editing an existing RFQ.
+ */
+export async function saveAttachmentsToDatabase(
+  rfqId: string,
+  attachments: Attachment[]
+): Promise<void> {
+  await updateRFQFields(rfqId, {
+    attachments,
+    updatedAt: new Date().toISOString(),
+  });
 }
 
 export async function deleteRFQAttachment(
