@@ -35,6 +35,7 @@ export function fromSupabaseRFQRow(row: Record<string, unknown>): RFQ {
     createdBy: (row.created_by as string) || "",
     createdAt: (row.created_at as string) || new Date().toISOString(),
     updatedAt: (row.updated_at as string) || (row.created_at as string) || new Date().toISOString(),
+    attachments: Array.isArray(row.attachments) ? row.attachments : [],
   };
 }
 
@@ -60,6 +61,7 @@ function toSupabaseRFQ(rfq: RFQ): Record<string, unknown> {
     created_by: rfq.createdBy,
     created_at: rfq.createdAt,
     updated_at: rfq.updatedAt,
+    attachments: rfq.attachments ?? [],
   };
 }
 
@@ -666,6 +668,7 @@ export async function updateRFQFields(rfqId: string, updates: Record<string, unk
   if (updates.onSiteVisitRequired !== undefined) payload.on_site_visit_required = updates.onSiteVisitRequired;
   if (updates.requestType !== undefined) payload.request_type = updates.requestType;
   if (updates.createdBy !== undefined) payload.created_by = updates.createdBy;
+  if (updates.attachments !== undefined) payload.attachments = updates.attachments;
   if (updates.updatedAt !== undefined) payload.updated_at = updates.updatedAt;
   else payload.updated_at = new Date().toISOString();
 

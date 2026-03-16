@@ -19,6 +19,16 @@ export interface User {
   email: string;
 }
 
+export interface RFQAttachment {
+  id: string;
+  fileName: string;
+  fileSize: number;
+  fileUrl: string;
+  storagePath: string;
+  mimeType: string;
+  uploadedAt: string;
+}
+
 export interface RFQ {
   id: string;
   project: string;
@@ -35,6 +45,7 @@ export interface RFQ {
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+  attachments?: RFQAttachment[];
 }
 
 export interface Supplier {

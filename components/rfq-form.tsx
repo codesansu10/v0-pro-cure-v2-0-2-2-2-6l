@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useStore } from "@/lib/store";
-import type { RequestType, RFQStatus } from "@/lib/types";
+import type { RequestType, RFQStatus, RFQAttachment } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,12 +22,20 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { AlertTriangle, Zap, Package } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { AlertTriangle, Zap, Package, Paperclip, X, FileText, Image, File } from "lucide-react";
+import { uploadRFQAttachment, deleteRFQAttachment, validateFile, formatFileSize, ALLOWED_MIME_TYPES } from "@/lib/file-upload";
 
 interface RFQFormProps {
   open: boolean;
   onClose: () => void;
   editId?: string | null;
+}
+
+function getFileIcon(mimeType: string) {
+  if (mimeType === "application/pdf") return <FileText className="h-3.5 w-3.5 text-red-500" />;
+  if (mimeType.startsWith("image/")) return <Image className="h-3.5 w-3.5 text-blue-500" />;
+  return <File className="h-3.5 w-3.5 text-gray-500" />;
 }
 
 export function RFQForm({ open, onClose, editId }: RFQFormProps) {
@@ -47,6 +55,14 @@ export function RFQForm({ open, onClose, editId }: RFQFormProps) {
     requestType: (editRFQ?.requestType || "Manufacturing") as RequestType,
   });
 
+  const [attachments, setAttachments] = useState<RFQAttachment[]>(editRFQ?.attachments || []);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [uploading, setUploading] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [uploadErrors, setUploadErrors] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const warnings = [];
   if (form.deliveryTime < 2)
     warnings.push({ icon: Zap, text: "Urgent Request", color: "bg-red-600" });
@@ -63,11 +79,60 @@ export function RFQForm({ open, onClose, editId }: RFQFormProps) {
       color: "bg-orange-600",
     });
 
-  function handleSave(status: RFQStatus) {
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    setFileError(null);
+    const files = Array.from(e.target.files || []);
+    const invalid = files.find((f) => !validateFile(f).valid);
+    if (invalid) {
+      setFileError(validateFile(invalid).error || "Invalid file");
+      return;
+    }
+    setPendingFiles((prev) => [...prev, ...files]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function removePendingFile(index: number) {
+    setPendingFiles((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function removeAttachment(att: RFQAttachment) {
+    setAttachments((prev) => prev.filter((a) => a.id !== att.id));
+    // Best-effort delete from storage; ignore failures (file stays in storage but not in the RFQ)
+    if (att.storagePath) {
+      deleteRFQAttachment(att.storagePath).catch(() => {});
+    }
+  }
+
+  async function uploadPendingFiles(rfqId: string): Promise<RFQAttachment[]> {
+    if (pendingFiles.length === 0) return [];
+    setUploading(true);
+    setUploadErrors([]);
+    const uploaded: RFQAttachment[] = [];
+    const errors: string[] = [];
+    for (let i = 0; i < pendingFiles.length; i++) {
+      const file = pendingFiles[i];
+      const result = await uploadRFQAttachment(rfqId, file, (pct) => {
+        setUploadProgress(Math.round(((i + pct / 100) / pendingFiles.length) * 100));
+      });
+      if (result) {
+        uploaded.push(result);
+      } else {
+        errors.push(`Failed to upload "${file.name}"`);
+      }
+    }
+    setUploading(false);
+    setUploadProgress(0);
+    setPendingFiles([]);
+    if (errors.length > 0) setUploadErrors(errors);
+    return uploaded;
+  }
+
+  async function handleSave(status: RFQStatus) {
     const user = getCurrentUser();
     if (editId) {
-      updateRFQ(editId, { ...form, status });
-      // Notify procurement if RFQ was submitted
+      const newAttachments = await uploadPendingFiles(editId);
+      const allAttachments = [...attachments, ...newAttachments];
+      updateRFQ(editId, { ...form, status, attachments: allAttachments });
       if (status === "Submitted") {
         addNotification({
           role: "procurement",
@@ -78,8 +143,11 @@ export function RFQForm({ open, onClose, editId }: RFQFormProps) {
         });
       }
     } else {
-      const rfqId = addRFQ({ ...form, status, createdBy: user.id });
-      // Notify procurement when engineer submits RFQ
+      const rfqId = addRFQ({ ...form, status, createdBy: user.id, attachments: [] });
+      const newAttachments = await uploadPendingFiles(rfqId);
+      if (newAttachments.length > 0) {
+        updateRFQ(rfqId, { attachments: newAttachments });
+      }
       if (status === "Submitted") {
         addNotification({
           role: "procurement",
@@ -237,6 +305,128 @@ export function RFQForm({ open, onClose, editId }: RFQFormProps) {
           </div>
         </div>
 
+        {/* Attachments Section */}
+        <div className="border rounded-md p-3 flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-semibold flex items-center gap-1.5">
+              <Paperclip className="h-3.5 w-3.5" />
+              Attachments
+            </Label>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+            >
+              + Add File
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept={ALLOWED_MIME_TYPES.join(",")}
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+          </div>
+
+          {fileError && (
+            <p className="text-xs text-red-500">{fileError}</p>
+          )}
+
+          {uploadErrors.length > 0 && (
+            <ul className="flex flex-col gap-0.5">
+              {uploadErrors.map((err, i) => (
+                <li key={i} className="text-xs text-red-500">{err}</li>
+              ))}
+            </ul>
+          )}
+
+          {/* Already-uploaded attachments */}
+          {attachments.length > 0 && (
+            <ul className="flex flex-col gap-1">
+              {attachments.map((att) => (
+                <li
+                  key={att.id}
+                  className="flex items-center justify-between rounded bg-muted px-2 py-1"
+                >
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    {getFileIcon(att.mimeType)}
+                    <a
+                      href={att.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs truncate max-w-[280px] hover:underline"
+                    >
+                      {att.fileName}
+                    </a>
+                    <span className="text-[10px] text-muted-foreground shrink-0">
+                      {formatFileSize(att.fileSize)}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeAttachment(att)}
+                    className="ml-2 text-muted-foreground hover:text-destructive shrink-0"
+                    aria-label="Remove attachment"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* Pending (not yet uploaded) files */}
+          {pendingFiles.length > 0 && (
+            <ul className="flex flex-col gap-1">
+              {pendingFiles.map((file, idx) => (
+                <li
+                  key={idx}
+                  className="flex items-center justify-between rounded border border-dashed px-2 py-1"
+                >
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    {getFileIcon(file.type)}
+                    <span className="text-xs truncate max-w-[280px]">{file.name}</span>
+                    <span className="text-[10px] text-muted-foreground shrink-0">
+                      {formatFileSize(file.size)}
+                    </span>
+                    <Badge variant="outline" className="text-[9px] h-4 px-1">
+                      Pending
+                    </Badge>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removePendingFile(idx)}
+                    className="ml-2 text-muted-foreground hover:text-destructive shrink-0"
+                    aria-label="Remove pending file"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {attachments.length === 0 && pendingFiles.length === 0 && (
+            <p className="text-[10px] text-muted-foreground text-center py-2">
+              No attachments. Click &ldquo;+ Add File&rdquo; to upload PDFs, documents, or images.
+            </p>
+          )}
+
+          {/* Upload progress */}
+          {uploading && (
+            <div className="flex flex-col gap-1">
+              <Progress value={uploadProgress} className="h-1.5" />
+              <p className="text-[10px] text-muted-foreground text-center">
+                Uploading… {uploadProgress}%
+              </p>
+            </div>
+          )}
+        </div>
+
         <DialogFooter>
           <Button variant="outline" size="sm" onClick={onClose} className="text-xs">
             Cancel
@@ -246,6 +436,7 @@ export function RFQForm({ open, onClose, editId }: RFQFormProps) {
             variant="outline"
             className="text-xs"
             onClick={() => handleSave("Draft")}
+            disabled={uploading}
           >
             Save as Draft
           </Button>
@@ -253,6 +444,7 @@ export function RFQForm({ open, onClose, editId }: RFQFormProps) {
             size="sm"
             className="bg-[#00A0E3] text-white text-xs hover:bg-[#0090cc]"
             onClick={() => handleSave("Submitted")}
+            disabled={uploading}
           >
             Submit RFQ
           </Button>
@@ -261,3 +453,4 @@ export function RFQForm({ open, onClose, editId }: RFQFormProps) {
     </Dialog>
   );
 }
+
