@@ -2,7 +2,9 @@
 
 import { useState, useRef } from "react";
 import { useStore } from "@/lib/store";
-import type { RequestType, RFQStatus, RFQAttachment } from "@/lib/types";
+import type { RequestType, RFQStatus } from "@/lib/types";
+import { uploadRFQAttachment, deleteRFQAttachment, formatFileSize, getFileIcon } from "@/lib/file-upload";
+import type { Attachment } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,9 +24,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Progress } from "@/components/ui/progress";
-import { AlertTriangle, Zap, Package, Paperclip, X, FileText, Image, File } from "lucide-react";
-import { uploadRFQAttachment, deleteRFQAttachment, validateFile, formatFileSize, ALLOWED_MIME_TYPES } from "@/lib/file-upload";
+import { AlertTriangle, Zap, Package, Upload, X } from "lucide-react";
 
 interface RFQFormProps {
   open: boolean;
@@ -55,13 +55,16 @@ export function RFQForm({ open, onClose, editId }: RFQFormProps) {
     requestType: (editRFQ?.requestType || "Manufacturing") as RequestType,
   });
 
-  const [attachments, setAttachments] = useState<RFQAttachment[]>(editRFQ?.attachments || []);
-  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
-  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [attachments, setAttachments] = useState<Attachment[]>(
+    editRFQ?.attachments ?? []
+  );
   const [uploading, setUploading] = useState(false);
-  const [fileError, setFileError] = useState<string | null>(null);
-  const [uploadErrors, setUploadErrors] = useState<string[]>([]);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Stable temporary folder for new (unsaved) RFQs so concurrent users don't collide
+  const tempFolderRef = useRef<string>(
+    `draft-${crypto.randomUUID().replace(/-/g, "").substring(0, 12)}`
+  );
 
   const warnings = [];
   if (form.deliveryTime < 2)
@@ -130,9 +133,8 @@ export function RFQForm({ open, onClose, editId }: RFQFormProps) {
   async function handleSave(status: RFQStatus) {
     const user = getCurrentUser();
     if (editId) {
-      const newAttachments = await uploadPendingFiles(editId);
-      const allAttachments = [...attachments, ...newAttachments];
-      updateRFQ(editId, { ...form, status, attachments: allAttachments });
+      updateRFQ(editId, { ...form, status, attachments });
+      // Notify procurement if RFQ was submitted
       if (status === "Submitted") {
         addNotification({
           role: "procurement",
@@ -143,11 +145,8 @@ export function RFQForm({ open, onClose, editId }: RFQFormProps) {
         });
       }
     } else {
-      const rfqId = addRFQ({ ...form, status, createdBy: user.id, attachments: [] });
-      const newAttachments = await uploadPendingFiles(rfqId);
-      if (newAttachments.length > 0) {
-        updateRFQ(rfqId, { attachments: newAttachments });
-      }
+      const rfqId = addRFQ({ ...form, status, createdBy: user.id, attachments });
+      // Notify procurement when engineer submits RFQ
       if (status === "Submitted") {
         addNotification({
           role: "procurement",
@@ -159,6 +158,44 @@ export function RFQForm({ open, onClose, editId }: RFQFormProps) {
       }
     }
     onClose();
+  }
+
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.currentTarget.files;
+    if (!files || files.length === 0) return;
+
+    setUploadError(null);
+    setUploading(true);
+
+    // Use the RFQ number from editId, or a unique temporary folder
+    const rfqRef = editId || tempFolderRef.current;
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      try {
+        const attachment = await uploadRFQAttachment(rfqRef, file);
+        setAttachments((prev) => [...prev, attachment]);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Upload failed";
+        setUploadError(msg);
+      }
+    }
+
+    setUploading(false);
+    // Reset file input so the same file can be re-selected after removal
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function handleRemoveAttachment(attachment: Attachment) {
+    setAttachments((prev) => prev.filter((a) => a.id !== attachment.id));
+    // Best-effort: remove file from Supabase Storage (non-blocking)
+    const rfqRef = editId || tempFolderRef.current;
+    const fileName = attachment.fileUrl.split("/").pop();
+    if (fileName) {
+      deleteRFQAttachment(rfqRef, fileName).catch((err) =>
+        console.warn("[Storage] Failed to delete attachment:", err)
+      );
+    }
   }
 
   return (
@@ -306,125 +343,95 @@ export function RFQForm({ open, onClose, editId }: RFQFormProps) {
         </div>
 
         {/* Attachments Section */}
-        <div className="border rounded-md p-3 flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <Label className="text-xs font-semibold flex items-center gap-1.5">
-              <Paperclip className="h-3.5 w-3.5" />
-              Attachments
-            </Label>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-            >
-              + Add File
-            </Button>
+        <div className="border-t pt-4 space-y-3">
+          <div>
+            <h3 className="text-sm font-semibold mb-1">📎 Attachments &amp; Documents</h3>
+            <p className="text-xs text-muted-foreground mb-3">
+              Upload technical specifications, drawings, or requirements (PDF, DOC, XLS, images — max 10 MB each)
+            </p>
+
+            {/* Hidden file input */}
             <input
               ref={fileInputRef}
               type="file"
               multiple
-              accept={ALLOWED_MIME_TYPES.join(",")}
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
               className="hidden"
               onChange={handleFileSelect}
+              disabled={uploading}
             />
-          </div>
 
-          {fileError && (
-            <p className="text-xs text-red-500">{fileError}</p>
-          )}
+            {/* Upload button */}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              disabled={uploading}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="h-3 w-3 mr-1.5" />
+              {uploading ? "Uploading…" : "Choose Files"}
+            </Button>
 
-          {uploadErrors.length > 0 && (
-            <ul className="flex flex-col gap-0.5">
-              {uploadErrors.map((err, i) => (
-                <li key={i} className="text-xs text-red-500">{err}</li>
-              ))}
-            </ul>
-          )}
+            {/* Upload progress indicator */}
+            {uploading && (
+              <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="h-1.5 flex-1 bg-muted rounded-full overflow-hidden">
+                  <div className="h-full bg-[#00A0E3] animate-pulse rounded-full w-full" />
+                </div>
+                <span>Uploading…</span>
+              </div>
+            )}
 
-          {/* Already-uploaded attachments */}
-          {attachments.length > 0 && (
-            <ul className="flex flex-col gap-1">
-              {attachments.map((att) => (
-                <li
-                  key={att.id}
-                  className="flex items-center justify-between rounded bg-muted px-2 py-1"
-                >
-                  <div className="flex items-center gap-2 overflow-hidden">
-                    {getFileIcon(att.mimeType)}
-                    <a
-                      href={att.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs truncate max-w-[280px] hover:underline"
+            {/* Upload error */}
+            {uploadError && (
+              <p className="mt-2 text-xs text-red-500">{uploadError}</p>
+            )}
+
+            {/* Uploaded files list */}
+            {attachments.length > 0 && (
+              <div className="mt-3 space-y-1.5">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Uploaded ({attachments.length})
+                </p>
+                {attachments.map((att) => (
+                  <div
+                    key={att.id}
+                    className="flex items-center justify-between bg-muted px-3 py-2 rounded-md border text-xs"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span>{getFileIcon(att.mimeType)}</span>
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{att.fileName}</p>
+                        <p className="text-muted-foreground">
+                          {formatFileSize(att.fileSize)} ·{" "}
+                          {new Date(att.uploadedAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 ml-2 flex-shrink-0"
+                      onClick={() => handleRemoveAttachment(att)}
+                      disabled={uploading}
                     >
-                      {att.fileName}
-                    </a>
-                    <span className="text-[10px] text-muted-foreground shrink-0">
-                      {formatFileSize(att.fileSize)}
-                    </span>
+                      <X className="h-3 w-3" />
+                    </Button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removeAttachment(att)}
-                    className="ml-2 text-muted-foreground hover:text-destructive shrink-0"
-                    aria-label="Remove attachment"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+                ))}
+              </div>
+            )}
 
-          {/* Pending (not yet uploaded) files */}
-          {pendingFiles.length > 0 && (
-            <ul className="flex flex-col gap-1">
-              {pendingFiles.map((file, idx) => (
-                <li
-                  key={idx}
-                  className="flex items-center justify-between rounded border border-dashed px-2 py-1"
-                >
-                  <div className="flex items-center gap-2 overflow-hidden">
-                    {getFileIcon(file.type)}
-                    <span className="text-xs truncate max-w-[280px]">{file.name}</span>
-                    <span className="text-[10px] text-muted-foreground shrink-0">
-                      {formatFileSize(file.size)}
-                    </span>
-                    <Badge variant="outline" className="text-[9px] h-4 px-1">
-                      Pending
-                    </Badge>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removePendingFile(idx)}
-                    className="ml-2 text-muted-foreground hover:text-destructive shrink-0"
-                    aria-label="Remove pending file"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {attachments.length === 0 && pendingFiles.length === 0 && (
-            <p className="text-[10px] text-muted-foreground text-center py-2">
-              No attachments. Click &ldquo;+ Add File&rdquo; to upload PDFs, documents, or images.
-            </p>
-          )}
-
-          {/* Upload progress */}
-          {uploading && (
-            <div className="flex flex-col gap-1">
-              <Progress value={uploadProgress} className="h-1.5" />
-              <p className="text-[10px] text-muted-foreground text-center">
-                Uploading… {uploadProgress}%
+            {/* Empty state */}
+            {attachments.length === 0 && !uploading && (
+              <p className="mt-3 text-xs text-muted-foreground text-center py-4 border border-dashed rounded">
+                No files uploaded yet
               </p>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         <DialogFooter>
@@ -446,7 +453,7 @@ export function RFQForm({ open, onClose, editId }: RFQFormProps) {
             onClick={() => handleSave("Submitted")}
             disabled={uploading}
           >
-            Submit RFQ
+            Submit RFQ{attachments.length > 0 && ` (${attachments.length} file${attachments.length > 1 ? "s" : ""})`}
           </Button>
         </DialogFooter>
       </DialogContent>

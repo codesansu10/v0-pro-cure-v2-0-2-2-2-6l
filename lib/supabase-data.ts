@@ -1,6 +1,7 @@
 import { supabase } from "./supabaseClient";
 import type {
   RFQ,
+  Attachment,
   Supplier,
   RFQSupplier,
   Quotation,
@@ -35,7 +36,7 @@ export function fromSupabaseRFQRow(row: Record<string, unknown>): RFQ {
     createdBy: (row.created_by as string) || "",
     createdAt: (row.created_at as string) || new Date().toISOString(),
     updatedAt: (row.updated_at as string) || (row.created_at as string) || new Date().toISOString(),
-    attachments: Array.isArray(row.attachments) ? row.attachments : [],
+    attachments: Array.isArray(row.attachments) ? (row.attachments as Attachment[]) : [],
   };
 }
 
