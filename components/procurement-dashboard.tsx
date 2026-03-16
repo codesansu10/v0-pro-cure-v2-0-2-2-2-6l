@@ -27,6 +27,7 @@ import {
   Plus,
   Truck,
   Download,
+  Eye,
 } from "lucide-react";
 import type { RFQStatus } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +38,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { RFQDetails } from "./rfq-details";
 
 export function ProcurementDashboard() {
   const {
@@ -53,6 +55,7 @@ export function ProcurementDashboard() {
   const [chatRFQId, setChatRFQId] = useState<string | null>(null);
   const [assignDialog, setAssignDialog] = useState<string | null>(null);
   const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([]);
+  const [viewDetailsRFQId, setViewDetailsRFQId] = useState<string | null>(null);
 
   const user = getCurrentUser();
 
@@ -262,6 +265,10 @@ export function ProcurementDashboard() {
     return actions;
   }
 
+  const viewDetailsRFQ = viewDetailsRFQId
+    ? state.rfqs.find((r) => r.id === viewDetailsRFQId) ?? null
+    : null;
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -460,6 +467,15 @@ export function ProcurementDashboard() {
                             variant="ghost"
                             size="sm"
                             className="h-6 w-6 p-0"
+                            onClick={() => setViewDetailsRFQId(rfq.id)}
+                            title="View details & attachments"
+                          >
+                            <Eye className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
                             onClick={() => {
                               setEditId(rfq.id);
                               setShowForm(true);
@@ -501,6 +517,14 @@ export function ProcurementDashboard() {
       </Card>
 
       {chatRFQId && <ChatPanel rfqId={chatRFQId} />}
+
+      {viewDetailsRFQ && (
+        <RFQDetails
+          rfq={viewDetailsRFQ}
+          open={!!viewDetailsRFQId}
+          onClose={() => setViewDetailsRFQId(null)}
+        />
+      )}
 
       {showForm && (
         <RFQForm

@@ -32,12 +32,6 @@ interface RFQFormProps {
   editId?: string | null;
 }
 
-function getFileIcon(mimeType: string) {
-  if (mimeType === "application/pdf") return <FileText className="h-3.5 w-3.5 text-red-500" />;
-  if (mimeType.startsWith("image/")) return <Image className="h-3.5 w-3.5 text-blue-500" />;
-  return <File className="h-3.5 w-3.5 text-gray-500" />;
-}
-
 export function RFQForm({ open, onClose, editId }: RFQFormProps) {
   const { addRFQ, updateRFQ, state, getCurrentUser, addNotification } = useStore();
   const editRFQ = editId ? state.rfqs.find((r) => r.id === editId) : null;
@@ -347,7 +341,7 @@ export function RFQForm({ open, onClose, editId }: RFQFormProps) {
           <div>
             <h3 className="text-sm font-semibold mb-1">📎 Attachments &amp; Documents</h3>
             <p className="text-xs text-muted-foreground mb-3">
-              Upload technical specifications, drawings, or requirements (PDF, DOC, XLS, images — max 10 MB each)
+              Upload technical specifications, drawings, or requirements (PDF, DOC, XLS, images)
             </p>
 
             {/* Hidden file input */}
