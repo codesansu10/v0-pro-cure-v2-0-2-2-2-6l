@@ -32,6 +32,12 @@ interface RFQFormProps {
   editId?: string | null;
 }
 
+function getFileIcon(mimeType: string) {
+  if (mimeType === "application/pdf") return <FileText className="h-3.5 w-3.5 text-red-500" />;
+  if (mimeType.startsWith("image/")) return <Image className="h-3.5 w-3.5 text-blue-500" />;
+  return <File className="h-3.5 w-3.5 text-gray-500" />;
+}
+
 export function RFQForm({ open, onClose, editId }: RFQFormProps) {
   const { addRFQ, updateRFQ, state, getCurrentUser, addNotification } = useStore();
   const editRFQ = editId ? state.rfqs.find((r) => r.id === editId) : null;
@@ -76,7 +82,55 @@ export function RFQForm({ open, onClose, editId }: RFQFormProps) {
       color: "bg-orange-600",
     });
 
-  function handleSave(status: RFQStatus) {
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    setFileError(null);
+    const files = Array.from(e.target.files || []);
+    const invalid = files.find((f) => !validateFile(f).valid);
+    if (invalid) {
+      setFileError(validateFile(invalid).error || "Invalid file");
+      return;
+    }
+    setPendingFiles((prev) => [...prev, ...files]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function removePendingFile(index: number) {
+    setPendingFiles((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function removeAttachment(att: RFQAttachment) {
+    setAttachments((prev) => prev.filter((a) => a.id !== att.id));
+    // Best-effort delete from storage; ignore failures (file stays in storage but not in the RFQ)
+    if (att.storagePath) {
+      deleteRFQAttachment(att.storagePath).catch(() => {});
+    }
+  }
+
+  async function uploadPendingFiles(rfqId: string): Promise<RFQAttachment[]> {
+    if (pendingFiles.length === 0) return [];
+    setUploading(true);
+    setUploadErrors([]);
+    const uploaded: RFQAttachment[] = [];
+    const errors: string[] = [];
+    for (let i = 0; i < pendingFiles.length; i++) {
+      const file = pendingFiles[i];
+      const result = await uploadRFQAttachment(rfqId, file, (pct) => {
+        setUploadProgress(Math.round(((i + pct / 100) / pendingFiles.length) * 100));
+      });
+      if (result) {
+        uploaded.push(result);
+      } else {
+        errors.push(`Failed to upload "${file.name}"`);
+      }
+    }
+    setUploading(false);
+    setUploadProgress(0);
+    setPendingFiles([]);
+    if (errors.length > 0) setUploadErrors(errors);
+    return uploaded;
+  }
+
+  async function handleSave(status: RFQStatus) {
     const user = getCurrentUser();
     if (editId) {
       updateRFQ(editId, { ...form, status, attachments });
@@ -406,3 +460,4 @@ export function RFQForm({ open, onClose, editId }: RFQFormProps) {
     </Dialog>
   );
 }
+
