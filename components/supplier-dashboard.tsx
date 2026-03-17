@@ -414,75 +414,80 @@ export function SupplierDashboard() {
                   Add Position
                 </Button>
               </div>
-              <div className="border border-border rounded-lg overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-40">Item Name</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10">Description</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-24">Qty</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-32">Unit Price</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-32">Total</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-12"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {lineItems.map((item, index) => (
-                      <TableRow key={item.id} className="hover:bg-muted/50">
-                        <TableCell className="p-2">
-                          <Input
-                            className="h-9 text-sm"
-                            placeholder="Item name"
-                            value={item.itemName}
-                            onChange={(e) => handleLineItemChange(index, "itemName", e.target.value)}
-                          />
-                        </TableCell>
-                        <TableCell className="p-2">
-                          <Input
-                            className="h-9 text-sm"
-                            placeholder="Description"
-                            value={item.description}
-                            onChange={(e) => handleLineItemChange(index, "description", e.target.value)}
-                          />
-                        </TableCell>
-                        <TableCell className="p-2">
-                          <Input
-                            className="h-9 text-sm"
-                            type="number"
-                            min="1"
-                            value={item.quantity || ""}
-                            onChange={(e) => handleLineItemChange(index, "quantity", e.target.value)}
-                          />
-                        </TableCell>
-                        <TableCell className="p-2">
-                          <Input
-                            className="h-9 text-sm"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={item.unitPrice || ""}
-                            onChange={(e) => handleLineItemChange(index, "unitPrice", e.target.value)}
-                          />
-                        </TableCell>
-                        <TableCell className="p-2 text-sm font-medium whitespace-nowrap">
-                          {item.totalPrice.toLocaleString("de-DE")} EUR
-                        </TableCell>
-                        <TableCell className="p-2">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                            onClick={() => removeLineItem(index)}
-                            disabled={lineItems.length === 1}
-                          >
-                            <Trash2 className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        </TableCell>
+              <div className="border border-border rounded-lg overflow-hidden bg-white">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent bg-slate-50">
+                        <TableHead className="text-sm font-bold uppercase h-12 w-1/4 px-4 py-3">Item Name</TableHead>
+                        <TableHead className="text-sm font-bold uppercase h-12 w-1/4 px-4 py-3">Description</TableHead>
+                        <TableHead className="text-sm font-bold uppercase h-12 w-20 px-3 py-3 text-center">Qty</TableHead>
+                        <TableHead className="text-sm font-bold uppercase h-12 w-32 px-3 py-3 text-right">Unit Price</TableHead>
+                        <TableHead className="text-sm font-bold uppercase h-12 w-32 px-3 py-3 text-right">Total</TableHead>
+                        <TableHead className="text-sm font-bold uppercase h-12 w-16 px-3 py-3 text-center">Action</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {lineItems.map((item, index) => (
+                        <TableRow key={item.id} className="hover:bg-slate-50 border-b">
+                          <TableCell className="p-3">
+                            <Input
+                              className="h-10 text-sm font-medium"
+                              placeholder="Item name"
+                              value={item.itemName}
+                              onChange={(e) => handleLineItemChange(index, "itemName", e.target.value)}
+                            />
+                          </TableCell>
+                          <TableCell className="p-3">
+                            <Input
+                              className="h-10 text-sm"
+                              placeholder="Description"
+                              value={item.description}
+                              onChange={(e) => handleLineItemChange(index, "description", e.target.value)}
+                            />
+                          </TableCell>
+                          <TableCell className="p-3">
+                            <Input
+                              className="h-10 text-sm text-center font-semibold"
+                              type="number"
+                              min="1"
+                              value={item.quantity || ""}
+                              onChange={(e) => handleLineItemChange(index, "quantity", e.target.value)}
+                            />
+                          </TableCell>
+                          <TableCell className="p-3">
+                            <Input
+                              className="h-10 text-sm text-right font-semibold"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={item.unitPrice || ""}
+                              onChange={(e) => handleLineItemChange(index, "unitPrice", e.target.value)}
+                            />
+                          </TableCell>
+                          <TableCell className="p-3 text-right">
+                            <div className="text-sm font-bold text-slate-700">
+                              {(item.totalPrice || 0).toLocaleString("de-DE")} EUR
+                            </div>
+                          </TableCell>
+                          <TableCell className="p-3 text-center">
+                            {lineItems.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeLineItem(index)}
+                                className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-600"
+                              >
+                                <Trash2 className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
               <div className="flex justify-end">
                 <div className="bg-muted/50 px-4 py-2.5 rounded text-sm">
