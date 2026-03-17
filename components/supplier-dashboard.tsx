@@ -398,40 +398,42 @@ export function SupplierDashboard() {
               Submit Quotation — {quoteDialog}
             </DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col gap-5 overflow-y-auto px-6 py-5 flex-1">
+          <div className="flex flex-col gap-0 overflow-hidden flex-1">
+            <div className="overflow-y-auto px-6 py-5 flex flex-col flex-1">
             {/* Line Items Section */}
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-4 flex-1 min-h-0">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-semibold">Price Positions</Label>
+                <Label className="text-base font-bold">Price Positions</Label>
                 <Button
                   type="button"
                   variant="outline"
-                  size="sm"
-                  className="h-9 gap-1.5 px-3 text-sm"
+                  size="lg"
+                  className="gap-1.5"
                   onClick={addLineItem}
                 >
                   <Plus className="h-4 w-4" />
                   Add Position
                 </Button>
               </div>
-              <div className="border border-border rounded-lg overflow-hidden">
+              <div className="flex flex-col flex-1 min-h-0 border border-border rounded-lg overflow-hidden">
+                <div className="overflow-y-auto flex-1">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="sticky top-0 bg-slate-100">
                     <TableRow className="hover:bg-transparent">
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-40">Item Name</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10">Description</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-24">Qty</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-32">Unit Price</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-32">Total</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-12"></TableHead>
+                      <TableHead className="text-sm font-bold h-10 w-40">Item Name</TableHead>
+                      <TableHead className="text-sm font-bold h-10">Description</TableHead>
+                      <TableHead className="text-sm font-bold h-10 w-24">Qty</TableHead>
+                      <TableHead className="text-sm font-bold h-10 w-32">Unit Price</TableHead>
+                      <TableHead className="text-sm font-bold h-10 w-32">Total</TableHead>
+                      <TableHead className="text-sm font-bold h-10 w-12"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {lineItems.map((item, index) => (
-                      <TableRow key={item.id} className="hover:bg-muted/50">
+                      <TableRow key={item.id} className="h-14 hover:bg-muted/50">
                         <TableCell className="p-2">
                           <Input
-                            className="h-9 text-sm"
+                            className="h-10 text-base"
                             placeholder="Item name"
                             value={item.itemName}
                             onChange={(e) => handleLineItemChange(index, "itemName", e.target.value)}
@@ -439,7 +441,7 @@ export function SupplierDashboard() {
                         </TableCell>
                         <TableCell className="p-2">
                           <Input
-                            className="h-9 text-sm"
+                            className="h-10 text-base"
                             placeholder="Description"
                             value={item.description}
                             onChange={(e) => handleLineItemChange(index, "description", e.target.value)}
@@ -447,7 +449,7 @@ export function SupplierDashboard() {
                         </TableCell>
                         <TableCell className="p-2">
                           <Input
-                            className="h-9 text-sm"
+                            className="h-10 text-base"
                             type="number"
                             min="1"
                             value={item.quantity || ""}
@@ -456,7 +458,7 @@ export function SupplierDashboard() {
                         </TableCell>
                         <TableCell className="p-2">
                           <Input
-                            className="h-9 text-sm"
+                            className="h-10 text-base"
                             type="number"
                             min="0"
                             step="0.01"
@@ -464,7 +466,7 @@ export function SupplierDashboard() {
                             onChange={(e) => handleLineItemChange(index, "unitPrice", e.target.value)}
                           />
                         </TableCell>
-                        <TableCell className="p-2 text-sm font-medium whitespace-nowrap">
+                        <TableCell className="p-2 text-base font-medium whitespace-nowrap">
                           {item.totalPrice.toLocaleString("de-DE")} EUR
                         </TableCell>
                         <TableCell className="p-2">
@@ -483,15 +485,17 @@ export function SupplierDashboard() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               </div>
-              <div className="flex justify-end">
-                <div className="bg-muted/50 px-4 py-2.5 rounded text-sm">
-                  <span className="text-muted-foreground">Total Price: </span>
-                  <span className="font-bold">{calculatedTotalPrice.toLocaleString("de-DE")} EUR</span>
+              <div className="bg-blue-50 border border-blue-200 rounded p-4">
+                <div className="text-right">
+                  <span className="text-muted-foreground text-sm">Total Price: </span>
+                  <span className="text-xl font-bold">{calculatedTotalPrice.toLocaleString("de-DE")} EUR</span>
                 </div>
               </div>
             </div>
 
+            <div className="mt-6 flex flex-col gap-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-2">
                 <Label className="text-sm">Bonus / Malus (EUR)</Label>
@@ -620,6 +624,8 @@ export function SupplierDashboard() {
                 }
                 placeholder="Additional comments..."
               />
+            </div>
+            </div>
             </div>
           </div>
           <DialogFooter className="px-6 py-4 border-t border-border shrink-0">
