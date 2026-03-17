@@ -400,95 +400,114 @@ export function SupplierDashboard() {
           </DialogHeader>
           <div className="flex flex-col gap-5 overflow-y-auto px-6 py-5 flex-1">
             {/* Line Items Section */}
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-semibold">Price Positions</Label>
+                <Label className="text-base font-semibold">Price Positions</Label>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-9 gap-1.5 px-3 text-sm"
+                  className="gap-1.5 px-3 text-sm"
                   onClick={addLineItem}
                 >
                   <Plus className="h-4 w-4" />
                   Add Position
                 </Button>
               </div>
-              <div className="border border-border rounded-lg overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-40">Item Name</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10">Description</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-24">Qty</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-32">Unit Price</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-32">Total</TableHead>
-                      <TableHead className="text-xs font-semibold uppercase h-10 w-12"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {lineItems.map((item, index) => (
-                      <TableRow key={item.id} className="hover:bg-muted/50">
-                        <TableCell className="p-2">
-                          <Input
-                            className="h-9 text-sm"
-                            placeholder="Item name"
-                            value={item.itemName}
-                            onChange={(e) => handleLineItemChange(index, "itemName", e.target.value)}
-                          />
-                        </TableCell>
-                        <TableCell className="p-2">
-                          <Input
-                            className="h-9 text-sm"
-                            placeholder="Description"
-                            value={item.description}
-                            onChange={(e) => handleLineItemChange(index, "description", e.target.value)}
-                          />
-                        </TableCell>
-                        <TableCell className="p-2">
-                          <Input
-                            className="h-9 text-sm"
-                            type="number"
-                            min="1"
-                            value={item.quantity || ""}
-                            onChange={(e) => handleLineItemChange(index, "quantity", e.target.value)}
-                          />
-                        </TableCell>
-                        <TableCell className="p-2">
-                          <Input
-                            className="h-9 text-sm"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={item.unitPrice || ""}
-                            onChange={(e) => handleLineItemChange(index, "unitPrice", e.target.value)}
-                          />
-                        </TableCell>
-                        <TableCell className="p-2 text-sm font-medium whitespace-nowrap">
-                          {item.totalPrice.toLocaleString("de-DE")} EUR
-                        </TableCell>
-                        <TableCell className="p-2">
+
+              {/* Cards for each line item */}
+              <div className="flex flex-col gap-4">
+                {lineItems.map((item, index) => (
+                  <div key={item.id} className="border border-slate-200 rounded-lg p-6 space-y-4">
+
+                    {/* Item Name */}
+                    <div className="flex flex-col gap-2">
+                      <Label className="text-sm font-medium">Item Name</Label>
+                      <Input
+                        className="text-sm h-10"
+                        placeholder="e.g., Steel Plate 1000x500mm"
+                        value={item.itemName}
+                        onChange={(e) => handleLineItemChange(index, "itemName", e.target.value)}
+                      />
+                    </div>
+
+                    {/* Description */}
+                    <div className="flex flex-col gap-2">
+                      <Label className="text-sm font-medium">Description</Label>
+                      <Textarea
+                        className="text-sm h-24 resize-none"
+                        placeholder="Detailed description..."
+                        value={item.description}
+                        onChange={(e) => handleLineItemChange(index, "description", e.target.value)}
+                      />
+                    </div>
+
+                    {/* Quantity, Unit Price, Total, Remove */}
+                    <div className="grid grid-cols-4 gap-4 items-end">
+                      <div className="flex flex-col gap-2">
+                        <Label className="text-sm font-medium">Quantity</Label>
+                        <Input
+                          className="h-10 font-bold text-lg"
+                          type="number"
+                          min="1"
+                          value={item.quantity || ""}
+                          onChange={(e) => handleLineItemChange(index, "quantity", e.target.value)}
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <Label className="text-sm font-medium">Unit Price (EUR)</Label>
+                        <Input
+                          className="text-sm h-10"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={item.unitPrice || ""}
+                          onChange={(e) => handleLineItemChange(index, "unitPrice", e.target.value)}
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <Label className="text-sm font-medium">Total</Label>
+                        <div className="h-10 flex items-center font-bold text-base">
+                          {(item.totalPrice || 0).toLocaleString("de-DE", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}{" "}
+                          EUR
+                        </div>
+                      </div>
+
+                      {/* Remove Button */}
+                      <div className="flex justify-end">
+                        {lineItems.length > 1 && (
                           <Button
                             type="button"
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
-                            className="h-8 w-8 p-0"
                             onClick={() => removeLineItem(index)}
-                            disabled={lineItems.length === 1}
+                            className="text-red-600 border-red-200 hover:bg-red-50 gap-1.5"
                           >
-                            <Trash2 className="h-4 w-4 text-muted-foreground" />
+                            <Trash2 className="h-4 w-4" />
+                            Remove
                           </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="flex justify-end">
-                <div className="bg-muted/50 px-4 py-2.5 rounded text-sm">
-                  <span className="text-muted-foreground">Total Price: </span>
-                  <span className="font-bold">{calculatedTotalPrice.toLocaleString("de-DE")} EUR</span>
-                </div>
+
+              {/* Total Price Summary */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex justify-between items-center">
+                <span className="text-sm font-medium">Total Price:</span>
+                <span className="text-lg font-bold text-blue-600">
+                  {calculatedTotalPrice.toLocaleString("de-DE", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}{" "}
+                  EUR
+                </span>
               </div>
             </div>
 
