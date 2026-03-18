@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { useStore } from "@/lib/store";
 import type { RequestType, RFQStatus } from "@/lib/types";
-import { uploadRFQAttachment, deleteRFQAttachment, formatFileSize, getFileIcon } from "@/lib/file-upload";
+import { uploadRFQAttachment, deleteRFQAttachment, formatFileSize, getFileIcon, saveAttachmentsToDatabase } from "@/lib/file-upload";
 import type { Attachment } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,54 +76,6 @@ export function RFQForm({ open, onClose, editId }: RFQFormProps) {
       color: "bg-orange-600",
     });
 
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    setFileError(null);
-    const files = Array.from(e.target.files || []);
-    const invalid = files.find((f) => !validateFile(f).valid);
-    if (invalid) {
-      setFileError(validateFile(invalid).error || "Invalid file");
-      return;
-    }
-    setPendingFiles((prev) => [...prev, ...files]);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  }
-
-  function removePendingFile(index: number) {
-    setPendingFiles((prev) => prev.filter((_, i) => i !== index));
-  }
-
-  function removeAttachment(att: RFQAttachment) {
-    setAttachments((prev) => prev.filter((a) => a.id !== att.id));
-    // Best-effort delete from storage; ignore failures (file stays in storage but not in the RFQ)
-    if (att.storagePath) {
-      deleteRFQAttachment(att.storagePath).catch(() => {});
-    }
-  }
-
-  async function uploadPendingFiles(rfqId: string): Promise<RFQAttachment[]> {
-    if (pendingFiles.length === 0) return [];
-    setUploading(true);
-    setUploadErrors([]);
-    const uploaded: RFQAttachment[] = [];
-    const errors: string[] = [];
-    for (let i = 0; i < pendingFiles.length; i++) {
-      const file = pendingFiles[i];
-      const result = await uploadRFQAttachment(rfqId, file, (pct) => {
-        setUploadProgress(Math.round(((i + pct / 100) / pendingFiles.length) * 100));
-      });
-      if (result) {
-        uploaded.push(result);
-      } else {
-        errors.push(`Failed to upload "${file.name}"`);
-      }
-    }
-    setUploading(false);
-    setUploadProgress(0);
-    setPendingFiles([]);
-    if (errors.length > 0) setUploadErrors(errors);
-    return uploaded;
-  }
-
   async function handleSave(status: RFQStatus) {
     const user = getCurrentUser();
     if (editId) {
@@ -164,15 +116,30 @@ export function RFQForm({ open, onClose, editId }: RFQFormProps) {
     // Use the RFQ number from editId, or a unique temporary folder
     const rfqRef = editId || tempFolderRef.current;
 
+    const newAttachments: Attachment[] = [];
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       try {
         const attachment = await uploadRFQAttachment(rfqRef, file);
-        setAttachments((prev) => [...prev, attachment]);
+        newAttachments.push(attachment);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Upload failed";
         setUploadError(msg);
       }
+    }
+
+    if (newAttachments.length > 0) {
+      // Single state update with the complete list, then persist to DB
+      setAttachments((prev) => {
+        const updated = [...prev, ...newAttachments];
+        // Immediately persist to DB when editing an existing RFQ
+        if (editId) {
+          saveAttachmentsToDatabase(editId, updated).catch((err) =>
+            console.warn("[DB] Failed to save attachments:", err)
+          );
+        }
+        return updated;
+      });
     }
 
     setUploading(false);
@@ -181,7 +148,16 @@ export function RFQForm({ open, onClose, editId }: RFQFormProps) {
   }
 
   function handleRemoveAttachment(attachment: Attachment) {
-    setAttachments((prev) => prev.filter((a) => a.id !== attachment.id));
+    setAttachments((prev) => {
+      const updated = prev.filter((a) => a.id !== attachment.id);
+      // Immediately persist the updated list to DB when editing an existing RFQ
+      if (editId) {
+        saveAttachmentsToDatabase(editId, updated).catch((err) =>
+          console.warn("[DB] Failed to remove attachment from DB:", err)
+        );
+      }
+      return updated;
+    });
     // Best-effort: remove file from Supabase Storage (non-blocking)
     const rfqRef = editId || tempFolderRef.current;
     const fileName = attachment.fileUrl.split("/").pop();
