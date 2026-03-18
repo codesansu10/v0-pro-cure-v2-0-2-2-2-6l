@@ -1,4 +1,5 @@
 import { supabase } from "./supabaseClient";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import type {
   RFQ,
   Attachment,
@@ -649,6 +650,88 @@ export async function insertSupplier(supplier: Supplier): Promise<boolean> {
     return false;
   }
   return true;
+}
+
+// ===== GENERIC RFQ UPDATE =====
+
+// ===== REAL-TIME SUBSCRIPTION FUNCTIONS =====
+
+export function subscribeToRFQs(
+  onInsert: (rfq: RFQ) => void,
+  onUpdate: (rfq: RFQ) => void
+): RealtimeChannel | null {
+  if (!supabase) return null;
+  return supabase
+    .channel("realtime:rfqs")
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "rfqs" }, (payload) => {
+      onInsert(fromSupabaseRFQ(payload.new as Record<string, unknown>));
+    })
+    .on("postgres_changes", { event: "UPDATE", schema: "public", table: "rfqs" }, (payload) => {
+      onUpdate(fromSupabaseRFQ(payload.new as Record<string, unknown>));
+    })
+    .subscribe();
+}
+
+export function subscribeToRFQSuppliers(
+  onInsert: (rs: RFQSupplier) => void,
+  onUpdate: (rs: RFQSupplier) => void
+): RealtimeChannel | null {
+  if (!supabase) return null;
+  return supabase
+    .channel("realtime:rfq_suppliers")
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "rfq_suppliers" }, (payload) => {
+      onInsert(fromSupabaseRFQSupplier(payload.new as Record<string, unknown>));
+    })
+    .on("postgres_changes", { event: "UPDATE", schema: "public", table: "rfq_suppliers" }, (payload) => {
+      onUpdate(fromSupabaseRFQSupplier(payload.new as Record<string, unknown>));
+    })
+    .subscribe();
+}
+
+export function subscribeToQuotations(
+  onInsert: (quotation: Quotation, lineItems: QuotationLineItem[]) => void
+): RealtimeChannel | null {
+  if (!supabase) return null;
+  return supabase
+    .channel("realtime:quotations")
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "quotations" }, (payload) => {
+      const quotation = fromSupabaseQuotation(payload.new as Record<string, unknown>);
+      // Small delay to allow quotation items to be inserted before fetching them
+      setTimeout(async () => {
+        const lineItems = await fetchQuotationItems(quotation.id);
+        const totalPrice = lineItems.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
+        onInsert({ ...quotation, totalPrice }, lineItems);
+      }, 500);
+    })
+    .subscribe();
+}
+
+export function subscribeToQCS(
+  onInsert: (qcs: QCS) => void,
+  onUpdate: (qcs: QCS) => void
+): RealtimeChannel | null {
+  if (!supabase) return null;
+  return supabase
+    .channel("realtime:qcs")
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "qcs" }, (payload) => {
+      onInsert(fromSupabaseQCS(payload.new as Record<string, unknown>));
+    })
+    .on("postgres_changes", { event: "UPDATE", schema: "public", table: "qcs" }, (payload) => {
+      onUpdate(fromSupabaseQCS(payload.new as Record<string, unknown>));
+    })
+    .subscribe();
+}
+
+export function subscribeToNotifications(
+  onInsert: (notification: Notification) => void
+): RealtimeChannel | null {
+  if (!supabase) return null;
+  return supabase
+    .channel("realtime:notifications")
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications" }, (payload) => {
+      onInsert(fromSupabaseNotification(payload.new as Record<string, unknown>));
+    })
+    .subscribe();
 }
 
 // ===== GENERIC RFQ UPDATE =====

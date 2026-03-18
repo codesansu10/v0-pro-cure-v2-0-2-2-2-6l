@@ -24,6 +24,11 @@ import {
   insertNotification as insertNotificationToSupabase,
   updateNotificationRead,
   updateRFQFields,
+  subscribeToRFQs,
+  subscribeToRFQSuppliers,
+  subscribeToQuotations,
+  subscribeToQCS,
+  subscribeToNotifications,
 } from "./supabase-data";
 
 const defaultUsers = [
@@ -320,6 +325,88 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     }
     loadFromSupabase();
+  }, []);
+
+  // Set up real-time subscriptions so all users see instant updates
+  useEffect(() => {
+    const channels: Array<{ unsubscribe: () => void } | null> = [];
+
+    const rfqChannel = subscribeToRFQs(
+      (rfq) => {
+        // INSERT: add if not already present (avoids duplicate from local optimistic update)
+        setState((prev) => {
+          if (prev.rfqs.find((r) => r.id === rfq.id)) return prev;
+          return { ...prev, rfqs: [rfq, ...prev.rfqs] };
+        });
+      },
+      (rfq) => {
+        // UPDATE: replace the existing record
+        setState((prev) => ({
+          ...prev,
+          rfqs: prev.rfqs.map((r) => (r.id === rfq.id ? { ...r, ...rfq } : r)),
+        }));
+      }
+    );
+    channels.push(rfqChannel);
+
+    const rfqSuppliersChannel = subscribeToRFQSuppliers(
+      (rs) => {
+        setState((prev) => {
+          const exists = prev.rfqSuppliers.find(
+            (r) => r.rfqId === rs.rfqId && r.supplierId === rs.supplierId
+          );
+          if (exists) return prev;
+          return { ...prev, rfqSuppliers: [...prev.rfqSuppliers, rs] };
+        });
+      },
+      (rs) => {
+        setState((prev) => ({
+          ...prev,
+          rfqSuppliers: prev.rfqSuppliers.map((r) =>
+            r.rfqId === rs.rfqId && r.supplierId === rs.supplierId ? { ...r, ...rs } : r
+          ),
+        }));
+      }
+    );
+    channels.push(rfqSuppliersChannel);
+
+    const quotationsChannel = subscribeToQuotations((quotation, lineItems) => {
+      setState((prev) => {
+        if (prev.quotations.find((q) => q.id === quotation.id)) return prev;
+        return { ...prev, quotations: [...prev.quotations, { ...quotation, lineItems }] };
+      });
+    });
+    channels.push(quotationsChannel);
+
+    const qcsChannel = subscribeToQCS(
+      (qcs) => {
+        setState((prev) => {
+          if (prev.qcs.find((q) => q.id === qcs.id)) return prev;
+          return { ...prev, qcs: [qcs, ...prev.qcs] };
+        });
+      },
+      (qcs) => {
+        setState((prev) => ({
+          ...prev,
+          qcs: prev.qcs.map((q) => (q.id === qcs.id ? { ...q, ...qcs } : q)),
+        }));
+      }
+    );
+    channels.push(qcsChannel);
+
+    const notificationsChannel = subscribeToNotifications((notification) => {
+      setState((prev) => {
+        if (prev.notifications.find((n) => n.id === notification.id)) return prev;
+        return { ...prev, notifications: [notification, ...prev.notifications] };
+      });
+    });
+    channels.push(notificationsChannel);
+
+    return () => {
+      channels.forEach((channel) => {
+        if (channel) channel.unsubscribe();
+      });
+    };
   }, []);
 
   const getCurrentUser = useCallback(() => {
